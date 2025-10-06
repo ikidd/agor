@@ -20,6 +20,8 @@ export interface AppProps {
   onForkSession?: (sessionId: string, prompt: string) => void;
   onSpawnSession?: (sessionId: string, prompt: string) => void;
   onSendPrompt?: (sessionId: string, prompt: string) => void;
+  onUpdateSession?: (sessionId: string, updates: Partial<Session>) => void;
+  onDeleteSession?: (sessionId: string) => void;
   onSettingsClick?: () => void;
 }
 
@@ -33,6 +35,8 @@ export const App: React.FC<AppProps> = ({
   onForkSession,
   onSpawnSession,
   onSendPrompt,
+  onUpdateSession,
+  onDeleteSession,
   onSettingsClick,
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,12 +72,12 @@ export const App: React.FC<AppProps> = ({
     }
   };
 
-  const selectedSession = sessions.find((s) => s.session_id === selectedSessionId) || null;
+  const selectedSession = sessions.find(s => s.session_id === selectedSessionId) || null;
   const selectedSessionTasks = selectedSessionId ? tasks[selectedSessionId] || [] : [];
-  const currentBoard = boards.find((b) => b.board_id === currentBoardId);
+  const currentBoard = boards.find(b => b.board_id === currentBoardId);
 
   // Filter sessions by current board
-  const boardSessions = sessions.filter((session) =>
+  const boardSessions = sessions.filter(session =>
     currentBoard?.sessions.includes(session.session_id)
   );
 
@@ -86,7 +90,13 @@ export const App: React.FC<AppProps> = ({
         currentBoardIcon={currentBoard?.icon}
       />
       <Content style={{ position: 'relative', overflow: 'hidden' }}>
-        <SessionCanvas sessions={boardSessions} tasks={tasks} onSessionClick={handleSessionClick} />
+        <SessionCanvas
+          sessions={boardSessions}
+          tasks={tasks}
+          onSessionClick={handleSessionClick}
+          onSessionUpdate={onUpdateSession}
+          onSessionDelete={onDeleteSession}
+        />
         <NewSessionButton onClick={() => setModalOpen(true)} />
       </Content>
       <NewSessionModal
