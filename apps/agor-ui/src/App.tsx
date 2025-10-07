@@ -1,11 +1,12 @@
 import { getRepoReferenceOptions } from '@agor/core/config';
-import { Alert, ConfigProvider, message, Spin, theme } from 'antd';
+import { Alert, App as AntApp, ConfigProvider, Spin, theme } from 'antd';
 import { App as AgorApp } from './components/App';
 import { useAgorClient, useAgorData, useBoardActions, useSessionActions } from './hooks';
 import { mockAgents } from './mocks';
 import './App.css';
 
-function App() {
+function AppContent() {
+  const { message } = AntApp.useApp();
   // Connect to daemon
   const { client, connected, connecting, error: connectionError } = useAgorClient();
 
@@ -62,7 +63,10 @@ function App() {
             justifyContent: 'center',
           }}
         >
-          <Spin size="large" tip="Connecting to daemon..." />
+          <Spin size="large" />
+          <div style={{ marginTop: 16, color: 'rgba(255, 255, 255, 0.65)' }}>
+            Connecting to daemon...
+          </div>
         </div>
       </ConfigProvider>
     );
@@ -251,29 +255,38 @@ function App() {
 
   // Render main app
   return (
+    <AgorApp
+      client={client}
+      sessions={sessions}
+      tasks={tasks}
+      availableAgents={mockAgents}
+      boards={boards}
+      repos={repos}
+      worktreeOptions={worktreeOptions}
+      repoOptions={repoOptions}
+      initialBoardId={boards[0]?.board_id}
+      onCreateSession={handleCreateSession}
+      onForkSession={handleForkSession}
+      onSpawnSession={handleSpawnSession}
+      onSendPrompt={handleSendPrompt}
+      onUpdateSession={handleUpdateSession}
+      onDeleteSession={handleDeleteSession}
+      onCreateBoard={handleCreateBoard}
+      onUpdateBoard={handleUpdateBoard}
+      onDeleteBoard={handleDeleteBoard}
+      onDeleteRepo={handleDeleteRepo}
+      onDeleteWorktree={handleDeleteWorktree}
+      onCreateWorktree={handleCreateWorktree}
+    />
+  );
+}
+
+function App() {
+  return (
     <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
-      <AgorApp
-        sessions={sessions}
-        tasks={tasks}
-        availableAgents={mockAgents}
-        boards={boards}
-        repos={repos}
-        worktreeOptions={worktreeOptions}
-        repoOptions={repoOptions}
-        initialBoardId={boards[0]?.board_id}
-        onCreateSession={handleCreateSession}
-        onForkSession={handleForkSession}
-        onSpawnSession={handleSpawnSession}
-        onSendPrompt={handleSendPrompt}
-        onUpdateSession={handleUpdateSession}
-        onDeleteSession={handleDeleteSession}
-        onCreateBoard={handleCreateBoard}
-        onUpdateBoard={handleUpdateBoard}
-        onDeleteBoard={handleDeleteBoard}
-        onDeleteRepo={handleDeleteRepo}
-        onDeleteWorktree={handleDeleteWorktree}
-        onCreateWorktree={handleCreateWorktree}
-      />
+      <AntApp>
+        <AppContent />
+      </AntApp>
     </ConfigProvider>
   );
 }

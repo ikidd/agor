@@ -1,3 +1,4 @@
+import type { AgorClient } from '@agor/core/api';
 import {
   BranchesOutlined,
   ClockCircleOutlined,
@@ -26,6 +27,7 @@ import {
 } from 'antd';
 import React from 'react';
 import type { Session, Task } from '../../types';
+import { ConversationView } from '../ConversationView';
 import { ToolIcon } from '../ToolIcon';
 import './SessionDrawer.css';
 
@@ -33,6 +35,7 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 interface SessionDrawerProps {
+  client: AgorClient | null;
   session: Session | null;
   tasks: Task[];
   open: boolean;
@@ -43,6 +46,7 @@ interface SessionDrawerProps {
 }
 
 const SessionDrawer = ({
+  client,
   session,
   tasks,
   open,
@@ -244,6 +248,16 @@ const SessionDrawer = ({
           </Space>
         </div>
       )}
+
+      <Divider />
+
+      {/* Conversation View */}
+      <div className="drawer-section">
+        <Title level={5}>Conversation</Title>
+        <div style={{ height: '400px', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
+          <ConversationView client={client} sessionId={session.session_id} />
+        </div>
+      </div>
 
       <Divider />
 

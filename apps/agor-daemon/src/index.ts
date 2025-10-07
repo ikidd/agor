@@ -122,11 +122,40 @@ async function main() {
       if (!id) throw new Error('Session ID required');
       if (!data.prompt) throw new Error('Prompt required');
 
-      // Execute prompt via ClaudeTool
+      // Get session to find current message count
+      const session = await sessionsService.get(id, params);
+      const messageStartIndex = session.message_count;
+
+      // Execute prompt via ClaudeTool (creates user + assistant messages)
       const result = await claudeTool.executePrompt(id as SessionID, data.prompt);
+
+      // Create task for this prompt
+      const task = await tasksService.create({
+        session_id: id,
+        status: 'completed',
+        description: data.prompt.substring(0, 120),
+        full_prompt: data.prompt,
+        message_range: {
+          start_index: messageStartIndex,
+          end_index: messageStartIndex + 1, // user message + assistant message
+          start_timestamp: new Date().toISOString(),
+          end_timestamp: new Date().toISOString(),
+        },
+        tool_use_count: 0, // TODO: extract from assistant message
+        git_state: {
+          sha_at_start: session.git_state?.current_sha || 'unknown',
+        },
+      });
+
+      // Update session with new task
+      await sessionsService.patch(id, {
+        tasks: [...session.tasks, task.task_id],
+        message_count: session.message_count + 2,
+      });
 
       return {
         success: true,
+        taskId: task.task_id,
         userMessageId: result.userMessageId,
         assistantMessageId: result.assistantMessageId,
       };

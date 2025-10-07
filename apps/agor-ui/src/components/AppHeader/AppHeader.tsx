@@ -27,23 +27,34 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         background: '#001529',
       }}
     >
-      <Space size={16}>
+      <Space size={16} align="center">
+        <img
+          src="/favicon.png"
+          alt="Agor logo"
+          style={{
+            height: 50,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+        />
         <Title level={3} style={{ margin: 0, color: '#fff' }}>
-          Agor
+          agor
         </Title>
         {currentBoardName && (
           <Space
             size={4}
+            align="center"
             style={{
               cursor: 'pointer',
               padding: '4px 8px',
               borderRadius: 4,
               transition: 'background 0.2s',
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={e => {
               e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={e => {
               e.currentTarget.style.background = 'transparent';
             }}
             onClick={onMenuClick}

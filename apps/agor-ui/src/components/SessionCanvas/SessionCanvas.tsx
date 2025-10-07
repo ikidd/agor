@@ -51,6 +51,7 @@ const SessionNode = ({ data }: { data: SessionNodeData }) => {
   );
 };
 
+// Define nodeTypes outside component to avoid recreation on every render
 const nodeTypes = {
   sessionNode: SessionNode,
 };

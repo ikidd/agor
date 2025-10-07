@@ -1,3 +1,4 @@
+import type { AgorClient } from '@agor/core/api';
 import type { Repo } from '@agor/core/types';
 import { Layout } from 'antd';
 import { useState } from 'react';
@@ -17,6 +18,7 @@ import { SettingsModal } from '../SettingsModal';
 const { Content } = Layout;
 
 export interface AppProps {
+  client: AgorClient | null;
   sessions: Session[];
   tasks: Record<string, Task[]>;
   availableAgents: Agent[];
@@ -43,6 +45,7 @@ export interface AppProps {
 }
 
 export const App: React.FC<AppProps> = ({
+  client,
   sessions,
   tasks,
   availableAgents,
@@ -139,6 +142,7 @@ export const App: React.FC<AppProps> = ({
         repoOptions={repoOptions}
       />
       <SessionDrawer
+        client={client}
         session={selectedSession}
         tasks={selectedSessionTasks}
         open={!!selectedSessionId}
