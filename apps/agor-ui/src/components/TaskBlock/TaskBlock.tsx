@@ -21,12 +21,11 @@ import {
   RightOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { Collapse, Space, Tag, Typography } from 'antd';
+import { Collapse, Space, Tag, Typography, theme } from 'antd';
 import type React from 'react';
 import { useMemo } from 'react';
 import { MessageBlock } from '../MessageBlock';
 import { ToolBlock } from '../ToolBlock';
-import './TaskBlock.css';
 
 const { Text, Paragraph } = Typography;
 
@@ -102,6 +101,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
   messages,
   defaultExpanded = false,
 }) => {
+  const { token } = theme.useToken();
+
   // Group messages into blocks
   const blocks = useMemo(() => groupMessagesIntoBlocks(messages), [messages]);
 
@@ -133,19 +134,23 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
 
   // Task header shows when collapsed
   const taskHeader = (
-    <div className="task-header">
-      <Space size={8} align="start" style={{ width: '100%' }}>
-        <div className="task-status-icon">{getStatusIcon()}</div>
-        <div className="task-header-content">
-          <div className="task-description">
+    <div style={{ width: '100%' }}>
+      <Space size={token.sizeUnit} align="start" style={{ width: '100%' }}>
+        <div style={{ fontSize: 16, marginTop: token.sizeUnit / 4 }}>{getStatusIcon()}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: token.sizeUnit / 2,
+            }}
+          >
             <Text strong>{task.description || 'User Prompt'}</Text>
-            <Tag color={getStatusColor()} style={{ marginLeft: 8, fontSize: 11 }}>
-              {task.status.toUpperCase()}
-            </Tag>
           </div>
 
           {/* Task metadata */}
-          <Space size={12} style={{ marginTop: 4 }}>
+          <Space size={token.sizeUnit * 1.5} style={{ marginTop: token.sizeUnit / 2 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               <MessageOutlined /> {messages.length}
             </Text>
@@ -168,41 +173,44 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
               </Tag>
             )}
           </Space>
-
-          {/* Show preview of full prompt when collapsed */}
-          {task.full_prompt && (
-            <Paragraph
-              ellipsis={{ rows: 2 }}
-              type="secondary"
-              style={{
-                marginTop: 8,
-                marginBottom: 0,
-                fontSize: 12,
-                fontFamily: 'monospace',
-                background: 'rgba(0, 0, 0, 0.02)',
-                padding: '4px 8px',
-                borderRadius: 4,
-              }}
-            >
-              {task.full_prompt}
-            </Paragraph>
-          )}
         </div>
       </Space>
     </div>
   );
 
   return (
-    <div className="task-block">
+    <div
+      style={{
+        margin: `${token.sizeUnit}px 0`,
+        borderLeft: `3px solid ${token.colorBorder}`,
+        paddingLeft: token.sizeUnit,
+      }}
+    >
       <Collapse
         defaultActiveKey={defaultExpanded ? ['task-content'] : []}
         expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
+        style={{ background: 'transparent', border: 'none' }}
         items={[
           {
             key: 'task-content',
             label: taskHeader,
+            style: { border: 'none' },
+            styles: {
+              header: {
+                padding: `${token.sizeUnit}px ${token.sizeUnit * 1.5}px`,
+                background: token.colorBgContainer,
+                border: `1px solid ${token.colorBorder}`,
+                borderRadius: token.borderRadius * 1.5,
+                alignItems: 'flex-start',
+              },
+              body: {
+                border: 'none',
+                background: 'transparent',
+                padding: `${token.sizeUnit}px ${token.sizeUnit * 1.5}px`,
+              },
+            },
             children: (
-              <div className="task-messages">
+              <div style={{ paddingTop: token.sizeUnit }}>
                 {blocks.length === 0 ? (
                   <Text type="secondary" style={{ fontStyle: 'italic' }}>
                     No messages in this task
@@ -225,7 +233,14 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
 
                 {/* Show commit message if available */}
                 {task.git_state.commit_message && (
-                  <div className="task-commit-message">
+                  <div
+                    style={{
+                      marginTop: token.sizeUnit * 1.5,
+                      padding: `${token.sizeUnit * 0.75}px ${token.sizeUnit * 1.25}px`,
+                      background: 'rgba(0, 0, 0, 0.02)',
+                      borderRadius: token.borderRadius,
+                    }}
+                  >
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       <GithubOutlined /> Commit:{' '}
                     </Text>
@@ -237,17 +252,17 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
 
                 {/* Show report if available */}
                 {task.report && (
-                  <div className="task-report">
+                  <div style={{ marginTop: token.sizeUnit * 1.5 }}>
                     <Tag icon={<FileTextOutlined />} color="green">
                       Task Report
                     </Tag>
                     <Paragraph
                       style={{
-                        marginTop: 8,
-                        padding: 12,
+                        marginTop: token.sizeUnit,
+                        padding: token.sizeUnit * 1.5,
                         background: 'rgba(82, 196, 26, 0.05)',
-                        border: '1px solid var(--ant-color-success-border)',
-                        borderRadius: 4,
+                        border: `1px solid ${token.colorSuccessBorder}`,
+                        borderRadius: token.borderRadius,
                         fontSize: 13,
                         whiteSpace: 'pre-wrap',
                       }}
@@ -260,7 +275,6 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
             ),
           },
         ]}
-        className="task-collapse"
       />
     </div>
   );

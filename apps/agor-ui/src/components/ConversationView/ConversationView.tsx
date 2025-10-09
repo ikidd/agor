@@ -128,7 +128,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       style={{
         height: '100%',
         overflowY: 'auto',
-        padding: '16px',
+        padding: '12px',
       }}
     >
       {/* Orphaned messages (messages without task_id) */}

@@ -70,14 +70,14 @@ export default class SessionLoadClaude extends Command {
       // Filter to conversation messages
       const conversation = filterConversationMessages(claudeSession.messages);
       this.log(
-        `${chalk.green('✓')} Conversation: ${conversation.length} messages (${conversation.filter((m) => m.type === 'user').length} user, ${conversation.filter((m) => m.type === 'assistant').length} assistant)`
+        `${chalk.green('✓')} Conversation: ${conversation.length} messages (${conversation.filter(m => m.type === 'user').length} user, ${conversation.filter(m => m.type === 'assistant').length} assistant)`
       );
 
       // Connect to daemon
       const client = createClient(daemonUrl);
 
       // Extract first user message as description
-      const firstUserMessage = conversation.find((m) => m.type === 'user');
+      const firstUserMessage = conversation.find(m => m.type === 'user');
       const description = firstUserMessage?.message?.content
         ? typeof firstUserMessage.message.content === 'string'
           ? firstUserMessage.message.content.substring(0, 200)
@@ -166,14 +166,61 @@ export default class SessionLoadClaude extends Command {
       this.log(`${chalk.green('✓')} Created ${totalTasks} tasks`);
 
       // Update session with task IDs
-      const taskIds = createdTasks.map((t) => t.task_id);
+      const taskIds = createdTasks.map(t => t.task_id);
       // biome-ignore lint/suspicious/noExplicitAny: FeathersJS service type doesn't include patch
       await (sessionsService as any).patch(created.session_id, {
         tasks: taskIds,
       });
 
-      // Link messages to their tasks
-      // TODO: Update messages to set task_id based on message_range
+      // Link messages to their tasks based on message_range
+      this.log(`${chalk.blue('●')} Linking messages to tasks...`);
+      let linkedCount = 0;
+
+      // Batch updates by collecting message_id -> task_id mappings
+      const messageLinkUpdates: { messageId: string; taskId: string }[] = [];
+
+      for (const task of createdTasks) {
+        const { start_index, end_index } = task.message_range;
+
+        // Collect all messages in this range
+        for (let idx = start_index; idx <= end_index; idx++) {
+          const message = messages[idx];
+          if (message) {
+            messageLinkUpdates.push({
+              messageId: message.message_id,
+              taskId: task.task_id,
+            });
+            linkedCount++;
+          }
+        }
+      }
+
+      // Use bulk link service if available, otherwise fall back to individual updates
+      try {
+        const messageLinkService = client.service('messages/link-tasks');
+        // biome-ignore lint/suspicious/noExplicitAny: Custom service method
+        await (messageLinkService as any).create({ updates: messageLinkUpdates });
+      } catch {
+        // Fallback: batch patch in groups of 100
+        const messagesService = client.service('messages');
+        const batchSize = 100;
+        for (let i = 0; i < messageLinkUpdates.length; i += batchSize) {
+          const batch = messageLinkUpdates.slice(i, i + batchSize);
+          await Promise.all(
+            batch.map(update =>
+              // biome-ignore lint/suspicious/noExplicitAny: FeathersJS service type doesn't include patch
+              (messagesService as any).patch(update.messageId, { task_id: update.taskId })
+            )
+          );
+          this.log(
+            `${chalk.blue('●')} Linked ${Math.min(i + batchSize, messageLinkUpdates.length)}/${messageLinkUpdates.length} messages...`
+          );
+        }
+      }
+
+      this.log(
+        `${chalk.green('✓')} Linked ${linkedCount} messages to ${createdTasks.length} tasks`
+      );
 
       // Add to board if specified
       if (flags.board) {
@@ -196,7 +243,7 @@ export default class SessionLoadClaude extends Command {
       this.log('');
 
       // Close socket connection and wait for it to close
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         client.io.on('disconnect', resolve);
         client.io.close();
         setTimeout(resolve, 1000); // Fallback timeout

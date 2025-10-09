@@ -9,12 +9,22 @@ import {
   PlusSquareOutlined,
   SendOutlined,
 } from '@ant-design/icons';
-import { Badge, Button, Divider, Drawer, Dropdown, Input, Space, Tag, Typography } from 'antd';
+import {
+  Badge,
+  Button,
+  Divider,
+  Drawer,
+  Dropdown,
+  Input,
+  Space,
+  Tag,
+  Typography,
+  theme,
+} from 'antd';
 import React from 'react';
 import type { Session } from '../../types';
 import { ConversationView } from '../ConversationView';
 import { ToolIcon } from '../ToolIcon';
-import './SessionDrawer.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -38,6 +48,7 @@ const SessionDrawer = ({
   onFork,
   onSubtask,
 }: SessionDrawerProps) => {
+  const { token } = theme.useToken();
   const [inputValue, setInputValue] = React.useState('');
   const [scrollToBottom, setScrollToBottom] = React.useState<(() => void) | null>(null);
 
@@ -123,11 +134,10 @@ const SessionDrawer = ({
       width={720}
       open={open}
       onClose={onClose}
-      className="session-drawer"
     >
       {/* Genealogy Tags */}
       {(isForked || isSpawned) && (
-        <div className="drawer-section">
+        <div style={{ marginBottom: token.sizeUnit * 6 }}>
           <Space size={8}>
             {isForked && (
               <Tag icon={<ForkOutlined />} color="cyan">
@@ -148,7 +158,7 @@ const SessionDrawer = ({
       )}
 
       {/* Git State */}
-      <div className="drawer-section">
+      <div style={{ marginBottom: token.sizeUnit * 6 }}>
         <Title level={5}>Git State</Title>
         <Space direction="vertical" size={4}>
           <Text>
@@ -170,7 +180,7 @@ const SessionDrawer = ({
 
       {/* Repository/Worktree Info */}
       {session.repo && (
-        <div className="drawer-section">
+        <div style={{ marginBottom: token.sizeUnit * 6 }}>
           <Title level={5}>Repository</Title>
           <Space direction="vertical" size={4}>
             <Text>
@@ -205,7 +215,7 @@ const SessionDrawer = ({
 
       {/* Concepts */}
       {session.concepts.length > 0 && (
-        <div className="drawer-section">
+        <div style={{ marginBottom: token.sizeUnit * 6 }}>
           <Title level={5}>Loaded Concepts</Title>
           <Space size={8} wrap>
             {session.concepts.map(concept => (
@@ -221,11 +231,23 @@ const SessionDrawer = ({
 
       {/* Task-Centric Conversation View */}
       <div
-        className="drawer-section"
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          marginBottom: token.sizeUnit * 6,
+        }}
       >
         <Title level={5}>Conversation</Title>
-        <div style={{ flex: 1, border: '1px solid #d9d9d9', borderRadius: '4px', minHeight: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            border: `1px solid ${token.colorBorder}`,
+            borderRadius: token.borderRadius,
+            minHeight: 0,
+          }}
+        >
           <ConversationView
             client={client}
             sessionId={session.session_id}
@@ -236,7 +258,7 @@ const SessionDrawer = ({
 
       {/* Session Metadata */}
       <Divider />
-      <div className="drawer-section">
+      <div style={{ marginBottom: token.sizeUnit * 6 }}>
         <Title level={5}>Session Metadata</Title>
         <Space direction="vertical" size={4} style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -275,13 +297,13 @@ const SessionDrawer = ({
           bottom: 0,
           left: 0,
           right: 0,
-          padding: '16px 24px',
-          background: 'var(--ant-color-bg-container)',
-          borderTop: '1px solid var(--ant-color-border)',
-          marginTop: 24,
-          marginLeft: -24,
-          marginRight: -24,
-          marginBottom: -24,
+          padding: `${token.sizeUnit * 4}px ${token.sizeUnit * 6}px`,
+          background: token.colorBgContainer,
+          borderTop: `1px solid ${token.colorBorder}`,
+          marginTop: token.sizeUnit * 6,
+          marginLeft: -token.sizeUnit * 6,
+          marginRight: -token.sizeUnit * 6,
+          marginBottom: -token.sizeUnit * 6,
         }}
       >
         <Space.Compact style={{ width: '100%' }} direction="vertical" size={8}>

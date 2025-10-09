@@ -22,12 +22,11 @@ import {
   SearchOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { Collapse, Space, Tag, Typography } from 'antd';
+import { Collapse, Space, Tag, Typography, theme } from 'antd';
 import type React from 'react';
 import { useMemo } from 'react';
 import { ToolIcon } from '../ToolIcon';
 import { ToolUseRenderer } from '../ToolUseRenderer';
-import './ToolBlock.css';
 
 const { Text } = Typography;
 
@@ -66,6 +65,8 @@ interface ToolInvocation {
 }
 
 export const ToolBlock: React.FC<ToolBlockProps> = ({ messages }) => {
+  const { token } = theme.useToken();
+
   // Extract all tool invocations from messages
   const toolInvocations = useMemo(() => {
     const invocations: ToolInvocation[] = [];
@@ -143,15 +144,15 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({ messages }) => {
 
   // Collapsed summary header
   const summaryHeader = (
-    <div className="tool-block-header">
-      <Space size={12} align="start" style={{ width: '100%', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: token.sizeUnit * 0.75 }}>
+      <Space size={token.sizeUnit * 1.5} align="start" style={{ width: '100%', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: token.sizeUnit }}>
           <ToolOutlined style={{ fontSize: 16 }} />
           <Text strong>{totalTools} tools executed</Text>
         </div>
 
         {/* Tool type tags */}
-        <Space size={8} wrap>
+        <Space size={token.sizeUnit} wrap>
           {Array.from(toolCounts.entries()).map(([name, count]) => (
             <Tag
               key={name}
@@ -164,7 +165,7 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({ messages }) => {
         </Space>
 
         {/* Result stats */}
-        <Space size={8}>
+        <Space size={token.sizeUnit}>
           {resultStats.successes > 0 && (
             <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 11, margin: 0 }}>
               {resultStats.successes} success
@@ -180,8 +181,8 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({ messages }) => {
 
       {/* Files affected summary */}
       {filesAffected.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        <div style={{ marginTop: token.sizeUnit * 1.5 }}>
+          <Space direction="vertical" size={token.sizeUnit / 2} style={{ width: '100%' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               <FileTextOutlined /> Modified files ({filesAffected.length}):
             </Text>
@@ -206,28 +207,67 @@ export const ToolBlock: React.FC<ToolBlockProps> = ({ messages }) => {
   );
 
   return (
-    <div className="tool-block">
+    <div
+      style={{
+        marginBottom: token.sizeUnit * 1.5,
+        border: `1px solid ${token.colorBorder}`,
+        borderRadius: token.borderRadius * 1.5,
+        background: token.colorBgContainer,
+        overflow: 'hidden',
+        position: 'relative',
+        paddingLeft: token.sizeUnit / 2,
+      }}
+    >
+      {/* Left accent bar */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: token.sizeUnit / 2,
+          background: 'linear-gradient(180deg, #1890ff 0%, #096dd9 100%)',
+        }}
+      />
       <Collapse
         defaultActiveKey={[]}
         expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
+        style={{ border: 'none' }}
         items={[
           {
             key: 'tool-details',
             label: summaryHeader,
+            style: { border: 'none' },
+            styles: {
+              header: {
+                padding: `${token.sizeUnit * 1.25}px ${token.sizeUnit * 1.5}px`,
+                background: 'rgba(24, 144, 255, 0.03)',
+                borderBottom: `1px solid ${token.colorBorder}`,
+              },
+              body: {
+                border: 'none',
+                padding: token.sizeUnit * 1.5,
+              },
+            },
             children: (
-              <div className="tool-block-details">
-                <Space direction="vertical" size={16} style={{ width: '100%' }}>
-                  {toolInvocations.map(({ toolUse, toolResult }, index) => (
-                    <div key={toolUse.id || index} className="tool-block-item">
-                      <ToolUseRenderer toolUse={toolUse} toolResult={toolResult} />
-                    </div>
-                  ))}
-                </Space>
-              </div>
+              <Space direction="vertical" size={token.sizeUnit} style={{ width: '100%' }}>
+                {toolInvocations.map(({ toolUse, toolResult }, index) => (
+                  <div
+                    key={toolUse.id || index}
+                    style={{
+                      padding: token.sizeUnit,
+                      background: token.colorBgLayout,
+                      borderRadius: token.borderRadius,
+                      border: `1px solid ${token.colorBorder}`,
+                    }}
+                  >
+                    <ToolUseRenderer toolUse={toolUse} toolResult={toolResult} />
+                  </div>
+                ))}
+              </Space>
             ),
           },
         ]}
-        className="tool-block-collapse"
       />
     </div>
   );

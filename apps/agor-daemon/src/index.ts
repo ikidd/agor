@@ -247,6 +247,25 @@ async function main() {
     },
   });
 
+  // Hook: Remove session from all boards when session is deleted
+  sessionsService.on('removed', async (session: import('@agor/core/types').Session) => {
+    try {
+      // Find all boards
+      const boardsResult = await boardsService.find();
+      const boards = Array.isArray(boardsResult) ? boardsResult : boardsResult.data;
+
+      // Remove session from any boards that contain it
+      for (const board of boards) {
+        if (board.sessions?.includes(session.session_id)) {
+          await boardsService.removeSession(board.board_id, session.session_id);
+          console.log(`Removed session ${session.session_id} from board ${board.name}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to remove session from boards:', error);
+    }
+  });
+
   // Health check endpoint
   app.use('/health', {
     async find() {

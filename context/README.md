@@ -16,6 +16,7 @@ This directory contains modular knowledge files that document Agor's concepts, a
 - **[id-management.md](concepts/id-management.md)** - UUIDv7 strategy, short IDs, collision resolution
 - **[architecture.md](concepts/architecture.md)** - System design, storage structure, data flow (WIP)
 - **[design.md](concepts/design.md)** - UI/UX principles and component patterns
+- **[frontend-guidelines.md](concepts/frontend-guidelines.md)** - React/Ant Design patterns, token-based styling, WebSocket integration, component structure
 
 ### Explorations (Work in Progress)
 

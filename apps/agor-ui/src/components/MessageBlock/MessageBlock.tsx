@@ -13,6 +13,8 @@ import { RobotOutlined, UserOutlined } from '@ant-design/icons';
 import { Bubble } from '@ant-design/x';
 import { Avatar } from 'antd';
 import type React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ToolUseRenderer } from '../ToolUseRenderer';
 import './MessageBlock.css';
 
@@ -43,6 +45,11 @@ interface MessageBlockProps {
 
 export const MessageBlock: React.FC<MessageBlockProps> = ({ message }) => {
   const isUser = message.role === 'user';
+
+  // Skip rendering if message has no content
+  if (!message.content || (typeof message.content === 'string' && message.content.trim() === '')) {
+    return null;
+  }
 
   // Parse content blocks from message
   const getContentBlocks = (): {
@@ -92,8 +99,16 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({ message }) => {
 
   const { textBlocks, toolBlocks } = getContentBlocks();
 
+  // Skip rendering if message has no meaningful content
+  const hasText = textBlocks.some(text => text.trim().length > 0);
+  const hasTools = toolBlocks.length > 0;
+
+  if (!hasText && !hasTools) {
+    return null;
+  }
+
   // If this message is only tool invocations (no text), render compact
-  if (textBlocks.length === 0 && toolBlocks.length > 0) {
+  if (!hasText && hasTools) {
     return (
       <div className="message-block message-tools-only">
         {toolBlocks.map(({ toolUse, toolResult }) => (
@@ -117,7 +132,37 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({ message }) => {
         }
         content={
           <>
-            {textBlocks.length > 0 && <div className="message-text">{textBlocks.join('\n\n')}</div>}
+            {hasText && (
+              <div className="message-text">
+                {isUser ? (
+                  // User messages: plain text (preserve newlines)
+                  textBlocks.filter(t => t.trim()).join('\n\n')
+                ) : (
+                  // Assistant messages: render as markdown with GFM support
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Style code blocks
+                      code: ({ node, inline, className, children, ...props }) => {
+                        return inline ? (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <pre>
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        );
+                      },
+                    }}
+                  >
+                    {textBlocks.filter(t => t.trim()).join('\n\n')}
+                  </ReactMarkdown>
+                )}
+              </div>
+            )}
             {toolBlocks.length > 0 && (
               <div className="message-tools">
                 {toolBlocks.map(({ toolUse, toolResult }) => (

@@ -17,10 +17,9 @@ import {
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { Collapse, Tag, Typography } from 'antd';
+import { Collapse, Tag, Typography, theme } from 'antd';
 import type React from 'react';
 import { ToolIcon } from '../ToolIcon';
-import './ToolUseRenderer.css';
 
 const { Text, Paragraph } = Typography;
 
@@ -53,8 +52,68 @@ interface ToolUseRendererProps {
 }
 
 export const ToolUseRenderer: React.FC<ToolUseRendererProps> = ({ toolUse, toolResult }) => {
+  const { token } = theme.useToken();
   const { name, input } = toolUse;
   const isError = toolResult?.is_error;
+
+  // Generate smart description for tools
+  const getToolDescription = (): string | null => {
+    // Use explicit description if provided
+    if (typeof input.description === 'string') {
+      return input.description;
+    }
+
+    // Generate descriptions for common tools
+    switch (name) {
+      case 'Read':
+        if (input.file_path) {
+          // Try to make path relative (strip common prefixes)
+          const path = String(input.file_path);
+          const relativePath = path
+            .replace(/^\/Users\/[^/]+\/code\/[^/]+\//, '') // Strip /Users/max/code/agor/
+            .replace(/^\/Users\/[^/]+\//, '~/'); // Or make it ~/...
+          return relativePath;
+        }
+        return null;
+
+      case 'Write':
+        if (input.file_path) {
+          const path = String(input.file_path);
+          const relativePath = path
+            .replace(/^\/Users\/[^/]+\/code\/[^/]+\//, '')
+            .replace(/^\/Users\/[^/]+\//, '~/');
+          return `Write ${relativePath}`;
+        }
+        return null;
+
+      case 'Edit':
+        if (input.file_path) {
+          const path = String(input.file_path);
+          const relativePath = path
+            .replace(/^\/Users\/[^/]+\/code\/[^/]+\//, '')
+            .replace(/^\/Users\/[^/]+\//, '~/');
+          return `Edit ${relativePath}`;
+        }
+        return null;
+
+      case 'Grep':
+        if (input.pattern) {
+          return `Search: ${input.pattern}`;
+        }
+        return null;
+
+      case 'Glob':
+        if (input.pattern) {
+          return `Find files: ${input.pattern}`;
+        }
+        return null;
+
+      default:
+        return null;
+    }
+  };
+
+  const description = getToolDescription();
 
   // Extract text content from tool result
   const getResultText = (): string => {
@@ -76,47 +135,88 @@ export const ToolUseRenderer: React.FC<ToolUseRendererProps> = ({ toolUse, toolR
 
   const resultText = getResultText();
 
-  return (
-    <div className="tool-use-renderer">
-      <div className="tool-header">
-        <ToolIcon tool={name} size={16} />
-        <Text strong style={{ marginLeft: 8 }}>
-          {name}
-        </Text>
-        {toolResult &&
-          (isError ? (
-            <Tag icon={<CloseCircleOutlined />} color="error" style={{ marginLeft: 8 }}>
-              Error
-            </Tag>
+  // Tool header component
+  const toolHeader = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: token.sizeUnit, width: '100%' }}>
+      <ToolIcon tool={name} size={16} />
+      <Text strong>{name}</Text>
+      {description && (
+        <>
+          <Text type="secondary">:</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {description}
+          </Text>
+        </>
+      )}
+      {toolResult && (
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          {isError ? (
+            <CloseCircleOutlined style={{ color: token.colorError, fontSize: 16 }} />
           ) : (
-            <Tag icon={<CheckCircleOutlined />} color="success" style={{ marginLeft: 8 }}>
-              Success
-            </Tag>
-          ))}
-      </div>
+            <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 16 }} />
+          )}
+        </div>
+      )}
+    </div>
+  );
 
-      {/* Tool Input Parameters */}
+  return (
+    <div
+      style={{
+        padding: token.sizeUnit,
+        border: `1px solid ${token.colorBorderSecondary}`,
+        borderRadius: token.borderRadius,
+        background: token.colorBgContainer,
+        margin: `${token.sizeUnit * 0.75}px 0`,
+      }}
+    >
+      {/* Collapsible tool details with header as trigger */}
       <Collapse
         size="small"
         ghost
+        defaultActiveKey={[]}
+        expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
         items={[
           {
-            key: 'input',
-            label: (
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                <CodeOutlined /> Input Parameters
-              </Text>
+            key: 'details',
+            label: toolHeader,
+            children: (
+              <div style={{ paddingLeft: token.sizeUnit * 3 }}>
+                <pre
+                  style={{
+                    background: token.colorBgLayout,
+                    padding: `${token.sizeUnit * 0.75}px ${token.sizeUnit}px`,
+                    borderRadius: token.borderRadius,
+                    fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
+                    fontSize: 12,
+                    overflowX: 'auto',
+                    margin: 0,
+                  }}
+                >
+                  {JSON.stringify(input, null, 2)}
+                </pre>
+              </div>
             ),
-            children: <pre className="tool-input">{JSON.stringify(input, null, 2)}</pre>,
           },
         ]}
-        expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
       />
 
-      {/* Tool Result */}
+      {/* Tool Result - always visible if present */}
       {toolResult && (
-        <div className={`tool-result ${isError ? 'tool-result-error' : 'tool-result-success'}`}>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
+        <div
+          style={{
+            marginTop: token.sizeUnit,
+            padding: token.sizeUnit,
+            borderRadius: token.borderRadius,
+            border: `1px solid ${token.colorBorder}`,
+            background: isError ? 'rgba(255, 77, 79, 0.05)' : 'rgba(82, 196, 26, 0.05)',
+            borderColor: isError ? token.colorErrorBorder : token.colorSuccessBorder,
+          }}
+        >
+          <Text
+            type="secondary"
+            style={{ fontSize: 12, marginBottom: token.sizeUnit, display: 'block' }}
+          >
             Output:
           </Text>
           <Paragraph

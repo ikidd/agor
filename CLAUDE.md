@@ -21,6 +21,7 @@ All architectural documentation lives in `context/`. **Start with `context/READM
 - **`context/concepts/architecture.md`** - System design, storage structure, and component interactions
 - **`context/concepts/id-management.md`** - UUIDv7 implementation, short IDs, and branded types
 - **`context/concepts/design.md`** - UI/UX standards and component patterns (for agor-ui work)
+- **`context/concepts/frontend-guidelines.md`** - React/Ant Design patterns, token-based styling, WebSocket integration
 
 ### Explorations (WIP/Future)
 
