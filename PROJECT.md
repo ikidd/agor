@@ -82,9 +82,14 @@
 
 **Next Steps**
 
+- [ ] **Session fork implementation** - Wire up fork button to actually fork sessions
+  - Use Agent SDK to fork conversation at current state
+  - Create new Agor session record with forked SDK session ID
+  - Capture fork relationship in genealogy data model (`parent_id`, `fork_point`)
+  - Display genealogy tree on Board (React Flow edges between parent/child cards)
+  - Add fork metadata (decision point description, timestamp)
 - [ ] Add token usage tracking from Agent SDK metadata
 - [ ] Enable optional tools (`allowedTools: ['Read', 'Grep']`) with UX design
-- [ ] Session fork/spawn with genealogy tracking
 
 **Session Management**
 
@@ -111,9 +116,9 @@
 - [x] Task status updates (running → completed) with UI feedback
 - [x] ToolUseRenderer for displaying tool calls inline
 - [x] MarkdownRenderer with proper Ant Design Typography styling
-- [ ] Replace remaining mock data with daemon API calls (sessions, boards)
-- [ ] Session creation flow integrated with daemon
-- [ ] Prompt input component with submit to daemon
+- [x] Replace remaining mock data with daemon API calls (sessions, boards, repos, tasks)
+- [x] Session creation flow integrated with daemon
+- [x] Prompt input component with submit to daemon
 - [ ] Task timeline visualization from messages table
 - [ ] Genealogy tree rendering from database
 

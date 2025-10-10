@@ -5,10 +5,42 @@
  * Automatically loads CLAUDE.md and uses preset system prompts matching Claude Code CLI.
  */
 
+import { execSync } from 'node:child_process';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { MessagesRepository } from '../../db/repositories/messages';
 import type { SessionRepository } from '../../db/repositories/sessions';
 import type { Message, SessionID } from '../../types';
+
+/**
+ * Get path to Claude Code executable
+ * Uses `which claude` to find it in PATH
+ */
+function getClaudeCodePath(): string {
+  try {
+    const path = execSync('which claude', { encoding: 'utf-8' }).trim();
+    if (path) return path;
+  } catch {
+    // which failed, try common paths
+  }
+
+  // Fallback to common installation paths
+  const commonPaths = [
+    '/usr/local/bin/claude',
+    '/opt/homebrew/bin/claude',
+    `${process.env.HOME}/.nvm/versions/node/v20.19.4/bin/claude`,
+  ];
+
+  for (const path of commonPaths) {
+    try {
+      execSync(`test -x "${path}"`, { encoding: 'utf-8' });
+      return path;
+    } catch {}
+  }
+
+  throw new Error(
+    'Claude Code executable not found. Install with: npm install -g @anthropic-ai/claude-code'
+  );
+}
 
 export interface PromptResult {
   /** Assistant messages (can be multiple: tool invocation, then response) */
@@ -42,6 +74,138 @@ export class ClaudePromptService {
   }
 
   /**
+   * Load session and initialize query
+   * @private
+   */
+  private async setupQuery(sessionId: SessionID, prompt: string, resume = true) {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    this.logPromptStart(
+      sessionId,
+      prompt,
+      session.repo.cwd,
+      resume ? session.agent_session_id : undefined
+    );
+
+    const options: Record<string, unknown> = {
+      cwd: session.repo.cwd,
+      systemPrompt: { type: 'preset', preset: 'claude_code' },
+      settingSources: ['project'], // Auto-loads CLAUDE.md
+      model: 'claude-sonnet-4-5-20250929',
+      pathToClaudeCodeExecutable: getClaudeCodePath(),
+    };
+
+    // Add optional apiKey if provided
+    if (this.apiKey || process.env.ANTHROPIC_API_KEY) {
+      options.apiKey = this.apiKey || process.env.ANTHROPIC_API_KEY;
+    }
+
+    // Add optional resume if session exists
+    if (resume && session.agent_session_id) {
+      options.resume = session.agent_session_id;
+    }
+
+    const result = query({
+      prompt,
+      // biome-ignore lint/suspicious/noExplicitAny: SDK Options type doesn't include all available fields
+      options: options as any,
+    });
+
+    return result;
+  }
+
+  /**
+   * Log prompt start with context
+   * @private
+   */
+  private logPromptStart(
+    sessionId: SessionID,
+    prompt: string,
+    cwd: string,
+    agentSessionId?: string
+  ) {
+    console.log(`🤖 Prompting Claude for session ${sessionId}...`);
+    console.log(`   CWD: ${cwd}`);
+    console.log(`   Prompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
+    if (agentSessionId) {
+      console.log(`   📚 Resuming Agent SDK session: ${agentSessionId}`);
+    }
+    console.log('📤 Calling Agent SDK query()...');
+  }
+
+  /**
+   * Process content from assistant message into content blocks
+   * @private
+   */
+  private processContentBlocks(
+    content: unknown,
+    messageNum: number
+  ): Array<{
+    type: string;
+    text?: string;
+    id?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+  }> {
+    console.log(
+      `   [Message ${messageNum}] Content type: ${Array.isArray(content) ? 'array' : typeof content}`
+    );
+
+    const contentBlocks: Array<{
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }> = [];
+
+    if (typeof content === 'string') {
+      contentBlocks.push({ type: 'text', text: content });
+      console.log(`   [Message ${messageNum}] Added text block: ${content.length} chars`);
+    } else if (Array.isArray(content)) {
+      for (const block of content) {
+        contentBlocks.push(block);
+        if (block.type === 'text') {
+          console.log(
+            `   [Message ${messageNum}] Added text block: ${block.text?.length || 0} chars`
+          );
+        } else if (block.type === 'tool_use') {
+          console.log(`   [Message ${messageNum}] Added tool_use: ${block.name}`);
+        } else {
+          console.log(`   [Message ${messageNum}] Added block type: ${block.type}`);
+        }
+      }
+    }
+
+    return contentBlocks;
+  }
+
+  /**
+   * Extract tool uses from content blocks
+   * @private
+   */
+  private extractToolUses(
+    contentBlocks: Array<{
+      type: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: Record<string, unknown>;
+    }>
+  ): Array<{ id: string; name: string; input: Record<string, unknown> }> {
+    return contentBlocks
+      .filter(block => block.type === 'tool_use')
+      .map(block => ({
+        id: block.id!,
+        name: block.name!,
+        input: block.input || {},
+      }));
+  }
+
+  /**
    * Prompt a session using Claude Agent SDK (streaming version)
    *
    * Yields each assistant message as it arrives from the Agent SDK.
@@ -65,32 +229,7 @@ export class ClaudePromptService {
     toolUses?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
     agentSessionId?: string;
   }> {
-    // Load session to get repo context
-    const session = await this.sessionsRepo.findById(sessionId);
-    if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
-    }
-
-    console.log(`🤖 Prompting Claude for session ${sessionId}...`);
-    console.log(`   CWD: ${session.repo.cwd}`);
-    console.log(`   Prompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
-    if (session.agent_session_id) {
-      console.log(`   📚 Resuming Agent SDK session: ${session.agent_session_id}`);
-    }
-
-    // Use Agent SDK with preset configuration
-    console.log('📤 Calling Agent SDK query()...');
-    const result = query({
-      prompt,
-      options: {
-        cwd: session.repo.cwd,
-        systemPrompt: { type: 'preset', preset: 'claude_code' },
-        settingSources: ['project'], // Auto-loads CLAUDE.md
-        model: 'claude-sonnet-4-5-20250929',
-        apiKey: this.apiKey || process.env.ANTHROPIC_API_KEY,
-        resume: session.agent_session_id, // Resume conversation if SDK session exists
-      },
-    });
+    const result = await this.setupQuery(sessionId, prompt, true);
 
     // Collect and yield assistant messages progressively
     console.log('📥 Receiving messages from Agent SDK...');
@@ -108,44 +247,8 @@ export class ClaudePromptService {
       }
 
       if (msg.type === 'assistant') {
-        const content = msg.message?.content;
-        console.log(
-          `   [Message ${messageCount}] Content type: ${Array.isArray(content) ? 'array' : typeof content}`
-        );
-
-        const contentBlocks: Array<{
-          type: string;
-          text?: string;
-          id?: string;
-          name?: string;
-          input?: Record<string, unknown>;
-        }> = [];
-
-        if (typeof content === 'string') {
-          contentBlocks.push({ type: 'text', text: content });
-          console.log(`   [Message ${messageCount}] Added text block: ${content.length} chars`);
-        } else if (Array.isArray(content)) {
-          for (const block of content) {
-            contentBlocks.push(block);
-            if (block.type === 'text') {
-              console.log(
-                `   [Message ${messageCount}] Added text block: ${block.text?.length || 0} chars`
-              );
-            } else if (block.type === 'tool_use') {
-              console.log(`   [Message ${messageCount}] Added tool_use: ${block.name}`);
-            } else {
-              console.log(`   [Message ${messageCount}] Added block type: ${block.type}`);
-            }
-          }
-        }
-
-        const toolUses = contentBlocks
-          .filter(block => block.type === 'tool_use')
-          .map(block => ({
-            id: block.id!,
-            name: block.name!,
-            input: block.input || {},
-          }));
+        const contentBlocks = this.processContentBlocks(msg.message?.content, messageCount);
+        const toolUses = this.extractToolUses(contentBlocks);
 
         console.log(`   [Message ${messageCount}] Yielding assistant message (progressive update)`);
 
@@ -181,28 +284,7 @@ export class ClaudePromptService {
    * @returns Complete assistant response with metadata
    */
   async promptSession(sessionId: SessionID, prompt: string): Promise<PromptResult> {
-    // Load session to get repo context
-    const session = await this.sessionsRepo.findById(sessionId);
-    if (!session) {
-      throw new Error(`Session not found: ${sessionId}`);
-    }
-
-    console.log(`🤖 Prompting Claude for session ${sessionId}...`);
-    console.log(`   CWD: ${session.repo.cwd}`);
-    console.log(`   Prompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}`);
-
-    // Use Agent SDK with preset configuration
-    console.log('📤 Calling Agent SDK query()...');
-    const result = query({
-      prompt,
-      options: {
-        cwd: session.repo.cwd,
-        systemPrompt: { type: 'preset', preset: 'claude_code' },
-        settingSources: ['project'], // Auto-loads CLAUDE.md
-        model: 'claude-sonnet-4-5-20250929',
-        apiKey: this.apiKey || process.env.ANTHROPIC_API_KEY,
-      },
-    });
+    const result = await this.setupQuery(sessionId, prompt, false);
 
     // Collect response messages from async generator
     // IMPORTANT: Keep assistant messages SEPARATE (don't merge into one)
@@ -224,48 +306,8 @@ export class ClaudePromptService {
       console.log(`   [Message ${messageCount}] type: ${msg.type}`);
 
       if (msg.type === 'assistant') {
-        // Extract content from assistant message
-        const content = msg.message?.content;
-        console.log(
-          `   [Message ${messageCount}] Content type: ${Array.isArray(content) ? 'array' : typeof content}`
-        );
-
-        const contentBlocks: Array<{
-          type: string;
-          text?: string;
-          id?: string;
-          name?: string;
-          input?: Record<string, unknown>;
-        }> = [];
-
-        if (typeof content === 'string') {
-          // String content → convert to text block
-          contentBlocks.push({ type: 'text', text: content });
-          console.log(`   [Message ${messageCount}] Added text block: ${content.length} chars`);
-        } else if (Array.isArray(content)) {
-          // Array of blocks → preserve structure
-          for (const block of content) {
-            contentBlocks.push(block);
-            if (block.type === 'text') {
-              console.log(
-                `   [Message ${messageCount}] Added text block: ${block.text?.length || 0} chars`
-              );
-            } else if (block.type === 'tool_use') {
-              console.log(`   [Message ${messageCount}] Added tool_use: ${block.name}`);
-            } else {
-              console.log(`   [Message ${messageCount}] Added block type: ${block.type}`);
-            }
-          }
-        }
-
-        // Extract tool uses from this message's content blocks
-        const toolUses = contentBlocks
-          .filter(block => block.type === 'tool_use')
-          .map(block => ({
-            id: block.id!,
-            name: block.name!,
-            input: block.input || {},
-          }));
+        const contentBlocks = this.processContentBlocks(msg.message?.content, messageCount);
+        const toolUses = this.extractToolUses(contentBlocks);
 
         // Add as separate assistant message
         assistantMessages.push({
