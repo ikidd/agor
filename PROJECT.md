@@ -129,6 +129,10 @@
 - [ ] System tray integration
 - [ ] Local file system access for worktrees
 
+# TODO:
+
+- save session positions on board
+
 ---
 
 ## Roadmap

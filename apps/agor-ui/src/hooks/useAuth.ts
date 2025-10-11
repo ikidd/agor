@@ -59,6 +59,30 @@ export function useAuth(): UseAuthReturn {
       // Create temporary client to verify token
       const client = createClient(DAEMON_URL);
 
+      // Connect the client first (since autoConnect is false)
+      client.io.connect();
+
+      // Wait for connection
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+
+        if (client.io.connected) {
+          clearTimeout(timeout);
+          resolve();
+          return;
+        }
+
+        client.io.once('connect', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+
+        client.io.once('connect_error', err => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
+
       // Try to authenticate with stored token
       const result = await client.authenticate({
         strategy: 'jwt',
@@ -102,6 +126,30 @@ export function useAuth(): UseAuthReturn {
     try {
       // Create temporary client for login
       const client = createClient(DAEMON_URL);
+
+      // Connect the client first (since autoConnect is false)
+      client.io.connect();
+
+      // Wait for connection
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+
+        if (client.io.connected) {
+          clearTimeout(timeout);
+          resolve();
+          return;
+        }
+
+        client.io.once('connect', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+
+        client.io.once('connect_error', err => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      });
 
       // Authenticate
       const result = await client.authenticate({

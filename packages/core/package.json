@@ -51,7 +51,10 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "db:setup": "tsx src/db/scripts/setup.ts",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "db:setup": "tsx src/db/scripts/setup-db.ts",
     "db:test": "tsx src/db/scripts/test-integration.ts"
   },
   "dependencies": {

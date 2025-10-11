@@ -37,6 +37,7 @@ export interface AppProps {
   onCreateBoard?: (board: Partial<Board>) => void;
   onUpdateBoard?: (boardId: string, updates: Partial<Board>) => void;
   onDeleteBoard?: (boardId: string) => void;
+  onCreateRepo?: (data: { url: string; slug: string }) => void;
   onDeleteRepo?: (repoId: string) => void;
   onDeleteWorktree?: (repoId: string, worktreeName: string) => void;
   onCreateWorktree?: (
@@ -66,6 +67,7 @@ export const App: React.FC<AppProps> = ({
   onCreateBoard,
   onUpdateBoard,
   onDeleteBoard,
+  onCreateRepo,
   onDeleteRepo,
   onDeleteWorktree,
   onCreateWorktree,
@@ -173,6 +175,7 @@ export const App: React.FC<AppProps> = ({
         onCreateBoard={onCreateBoard}
         onUpdateBoard={onUpdateBoard}
         onDeleteBoard={onDeleteBoard}
+        onCreateRepo={onCreateRepo}
         onDeleteRepo={onDeleteRepo}
         onDeleteWorktree={onDeleteWorktree}
         onCreateWorktree={onCreateWorktree}

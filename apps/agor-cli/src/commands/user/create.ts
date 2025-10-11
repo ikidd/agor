@@ -41,6 +41,7 @@ export default class UserCreate extends Command {
 
     try {
       // Prompt for missing fields
+      let enteredPassword = flags.password;
       const answers = await inquirer.prompt([
         {
           type: 'input',
@@ -67,6 +68,7 @@ export default class UserCreate extends Command {
           validate: (input: string) => {
             if (!input) return 'Password is required';
             if (input.length < 8) return 'Password must be at least 8 characters';
+            enteredPassword = input; // Store for confirmation validation
             return true;
           },
           mask: '*',
@@ -76,8 +78,8 @@ export default class UserCreate extends Command {
           name: 'confirmPassword',
           message: 'Confirm password:',
           when: !flags.password,
-          validate: (input: string, answers: { password?: string }) => {
-            if (input !== (answers.password || flags.password)) {
+          validate: (input: string) => {
+            if (input !== enteredPassword) {
               return 'Passwords do not match';
             }
             return true;

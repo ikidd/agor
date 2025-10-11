@@ -20,6 +20,7 @@ const { Text, Title } = Typography;
 
 interface ReposTableProps {
   repos: Repo[];
+  onCreate?: (data: { url: string; slug: string }) => void;
   onDelete?: (repoId: string) => void;
   onDeleteWorktree?: (repoId: string, worktreeName: string) => void;
   onCreateWorktree?: (
@@ -30,12 +31,15 @@ interface ReposTableProps {
 
 export const ReposTable: React.FC<ReposTableProps> = ({
   repos,
+  onCreate,
   onDelete,
   onDeleteWorktree,
   onCreateWorktree,
 }) => {
+  const [createRepoModalOpen, setCreateRepoModalOpen] = useState(false);
   const [createWorktreeModalOpen, setCreateWorktreeModalOpen] = useState(false);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
+  const [repoForm] = Form.useForm();
   const [form] = Form.useForm();
 
   const handleDeleteRepo = (repoId: string) => {
@@ -56,6 +60,17 @@ export const ReposTable: React.FC<ReposTableProps> = ({
     setCreateWorktreeModalOpen(true);
   };
 
+  const handleCreateRepo = () => {
+    repoForm.validateFields().then(values => {
+      onCreate?.({
+        url: values.url,
+        slug: values.slug,
+      });
+      repoForm.resetFields();
+      setCreateRepoModalOpen(false);
+    });
+  };
+
   const handleCreateWorktree = () => {
     if (!selectedRepoId) return;
 
@@ -71,179 +86,221 @@ export const ReposTable: React.FC<ReposTableProps> = ({
     });
   };
 
-  if (repos.length === 0) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <Empty description="No repositories yet" style={{ marginTop: 32 }}>
-          <Text type="secondary">
-            Repositories are created when you create a new session with "Clone Repository" mode.
-          </Text>
-        </Empty>
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: '0 24px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <Text type="secondary">
-          Repositories are created when you create a new session with "Clone Repository" mode.
-        </Text>
+      <div
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text type="secondary">Clone and manage git repositories for your sessions.</Text>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateRepoModalOpen(true)}>
+          New Repository
+        </Button>
       </div>
 
-      <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        {repos.map(repo => (
-          <Card
-            key={repo.repo_id}
-            size="small"
-            title={
-              <Space>
-                <FolderOutlined />
-                <Text strong>{repo.name}</Text>
-                {repo.managed_by_agor && (
-                  <Tag color="blue" style={{ marginLeft: 8 }}>
-                    Managed
-                  </Tag>
-                )}
-              </Space>
-            }
-            extra={
-              <Popconfirm
-                title="Delete repository?"
-                description={
-                  <>
-                    <p>Are you sure you want to delete "{repo.name}"?</p>
-                    {repo.managed_by_agor && (
-                      <p style={{ color: '#ff4d4f' }}>
-                        ⚠️ This will delete the local repository and all{' '}
-                        {repo.worktrees?.length || 0} worktree(s).
-                      </p>
-                    )}
-                  </>
-                }
-                onConfirm={() => handleDeleteRepo(repo.repo_id)}
-                okText="Delete"
-                cancelText="Cancel"
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="text" size="small" icon={<DeleteOutlined />} danger />
-              </Popconfirm>
-            }
-          >
-            {/* Repo metadata */}
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Slug:{' '}
-                </Text>
-                <Text code style={{ fontSize: 12 }}>
-                  {repo.slug}
-                </Text>
-              </div>
+      {repos.length === 0 && (
+        <Empty description="No repositories yet" style={{ marginTop: 32, marginBottom: 32 }}>
+          <Text type="secondary">Click "New Repository" to clone a git repository.</Text>
+        </Empty>
+      )}
 
-              {repo.remote_url && (
+      {repos.length > 0 && (
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          {repos.map(repo => (
+            <Card
+              key={repo.repo_id}
+              size="small"
+              title={
+                <Space>
+                  <FolderOutlined />
+                  <Text strong>{repo.name}</Text>
+                  {repo.managed_by_agor && (
+                    <Tag color="blue" style={{ marginLeft: 8 }}>
+                      Managed
+                    </Tag>
+                  )}
+                </Space>
+              }
+              extra={
+                <Popconfirm
+                  title="Delete repository?"
+                  description={
+                    <>
+                      <p>Are you sure you want to delete "{repo.name}"?</p>
+                      {repo.managed_by_agor && (
+                        <p style={{ color: '#ff4d4f' }}>
+                          ⚠️ This will delete the local repository and all{' '}
+                          {repo.worktrees?.length || 0} worktree(s).
+                        </p>
+                      )}
+                    </>
+                  }
+                  onConfirm={() => handleDeleteRepo(repo.repo_id)}
+                  okText="Delete"
+                  cancelText="Cancel"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+                </Popconfirm>
+              }
+            >
+              {/* Repo metadata */}
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
                 <div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Remote:{' '}
+                    Slug:{' '}
                   </Text>
-                  <Text code style={{ fontSize: 11 }}>
-                    {repo.remote_url}
+                  <Text code style={{ fontSize: 12 }}>
+                    {repo.slug}
                   </Text>
                 </div>
-              )}
 
-              {/* Worktrees section */}
-              <div style={{ marginTop: 12 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  <Title level={5} style={{ marginBottom: 0, fontSize: 13 }}>
-                    Worktrees ({repo.worktrees?.length || 0})
-                  </Title>
-                  <Button
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleOpenCreateWorktree(repo.repo_id, repo.default_branch)}
+                {repo.remote_url && (
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Remote:{' '}
+                    </Text>
+                    <Text code style={{ fontSize: 11 }}>
+                      {repo.remote_url}
+                    </Text>
+                  </div>
+                )}
+
+                {/* Worktrees section */}
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 8,
+                    }}
                   >
-                    New Worktree
-                  </Button>
-                </div>
-                {repo.worktrees && repo.worktrees.length > 0 && (
-                  <List
-                    size="small"
-                    bordered
-                    dataSource={repo.worktrees}
-                    renderItem={worktree => (
-                      <List.Item
-                        actions={[
-                          <Popconfirm
-                            key="delete"
-                            title="Delete worktree?"
-                            description={
-                              <>
-                                <p>Delete worktree "{worktree.name}"?</p>
-                                {worktree.sessions.length > 0 && (
-                                  <p style={{ color: '#ff4d4f' }}>
-                                    ⚠️ {worktree.sessions.length} session(s) reference this
-                                    worktree.
-                                  </p>
+                    <Title level={5} style={{ marginBottom: 0, fontSize: 13 }}>
+                      Worktrees ({repo.worktrees?.length || 0})
+                    </Title>
+                    <Button
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => handleOpenCreateWorktree(repo.repo_id, repo.default_branch)}
+                    >
+                      New Worktree
+                    </Button>
+                  </div>
+                  {repo.worktrees && repo.worktrees.length > 0 && (
+                    <List
+                      size="small"
+                      bordered
+                      dataSource={repo.worktrees}
+                      renderItem={worktree => (
+                        <List.Item
+                          actions={[
+                            <Popconfirm
+                              key="delete"
+                              title="Delete worktree?"
+                              description={
+                                <>
+                                  <p>Delete worktree "{worktree.name}"?</p>
+                                  {worktree.sessions.length > 0 && (
+                                    <p style={{ color: '#ff4d4f' }}>
+                                      ⚠️ {worktree.sessions.length} session(s) reference this
+                                      worktree.
+                                    </p>
+                                  )}
+                                </>
+                              }
+                              onConfirm={() => handleDeleteWorktree(repo.repo_id, worktree.name)}
+                              okText="Delete"
+                              cancelText="Cancel"
+                              okButtonProps={{ danger: true }}
+                            >
+                              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+                            </Popconfirm>,
+                          ]}
+                        >
+                          <List.Item.Meta
+                            avatar={<BranchesOutlined />}
+                            title={
+                              <Space>
+                                <Text strong style={{ fontSize: 13 }}>
+                                  {worktree.name}
+                                </Text>
+                                {worktree.new_branch && (
+                                  <Tag color="green" style={{ fontSize: 11 }}>
+                                    New Branch
+                                  </Tag>
                                 )}
-                              </>
+                              </Space>
                             }
-                            onConfirm={() => handleDeleteWorktree(repo.repo_id, worktree.name)}
-                            okText="Delete"
-                            cancelText="Cancel"
-                            okButtonProps={{ danger: true }}
-                          >
-                            <Button type="text" size="small" icon={<DeleteOutlined />} danger />
-                          </Popconfirm>,
-                        ]}
-                      >
-                        <List.Item.Meta
-                          avatar={<BranchesOutlined />}
-                          title={
-                            <Space>
-                              <Text strong style={{ fontSize: 13 }}>
-                                {worktree.name}
-                              </Text>
-                              {worktree.new_branch && (
-                                <Tag color="green" style={{ fontSize: 11 }}>
-                                  New Branch
-                                </Tag>
-                              )}
-                            </Space>
-                          }
-                          description={
-                            <Space direction="vertical" size={2} style={{ fontSize: 12 }}>
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                📍 {worktree.ref}
-                              </Text>
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                💬 {worktree.sessions.length}{' '}
-                                {worktree.sessions.length === 1 ? 'session' : 'sessions'}
-                              </Text>
-                            </Space>
-                          }
-                        />
-                      </List.Item>
-                    )}
-                  />
-                )}
-                {repo.worktrees && repo.worktrees.length === 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    No worktrees yet
-                  </Text>
-                )}
-              </div>
-            </Space>
-          </Card>
-        ))}
-      </Space>
+                            description={
+                              <Space direction="vertical" size={2} style={{ fontSize: 12 }}>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                  📍 {worktree.ref}
+                                </Text>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                  💬 {worktree.sessions.length}{' '}
+                                  {worktree.sessions.length === 1 ? 'session' : 'sessions'}
+                                </Text>
+                              </Space>
+                            }
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                  {repo.worktrees && repo.worktrees.length === 0 && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      No worktrees yet
+                    </Text>
+                  )}
+                </div>
+              </Space>
+            </Card>
+          ))}
+        </Space>
+      )}
+
+      {/* Create Repository Modal */}
+      <Modal
+        title="Clone Repository"
+        open={createRepoModalOpen}
+        onOk={handleCreateRepo}
+        onCancel={() => {
+          repoForm.resetFields();
+          setCreateRepoModalOpen(false);
+        }}
+        okText="Clone"
+      >
+        <Form form={repoForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            label="Repository URL"
+            name="url"
+            rules={[{ required: true, message: 'Please enter a git repository URL' }]}
+            extra="HTTPS or SSH URL (e.g., https://github.com/user/repo.git)"
+          >
+            <Input placeholder="https://github.com/user/repo.git" />
+          </Form.Item>
+
+          <Form.Item
+            label="Repository Slug"
+            name="slug"
+            rules={[
+              { required: true, message: 'Please enter a slug' },
+              {
+                pattern: /^[a-z0-9-]+$/,
+                message: 'Slug must contain only lowercase letters, numbers, and hyphens',
+              },
+            ]}
+            extra="A short identifier for this repo (e.g., my-project)"
+          >
+            <Input placeholder="my-project" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Create Worktree Modal */}
       <Modal

@@ -18,6 +18,9 @@ export interface Session {
   created_at: string;
   last_updated: string;
 
+  /** User ID of the user who created this session */
+  created_by: string;
+
   // Repository context (required)
   repo: SessionRepoContext;
 

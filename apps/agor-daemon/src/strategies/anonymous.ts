@@ -29,7 +29,9 @@ export class AnonymousStrategy extends AuthenticationBaseStrategy {
     // Load config to check if anonymous access is allowed
     const config = await loadConfig();
 
-    if (!config.daemon?.allowAnonymous) {
+    // Default to allowing anonymous (local-first mode)
+    // Only block if explicitly set to false
+    if (config.daemon?.allowAnonymous === false) {
       throw new NotAuthenticated('Anonymous access disabled');
     }
 
@@ -37,7 +39,7 @@ export class AnonymousStrategy extends AuthenticationBaseStrategy {
     return {
       authentication: { strategy: 'anonymous' },
       user: {
-        id: 'anonymous',
+        user_id: 'anonymous',
         email: 'anonymous@localhost',
         role: 'admin',
         anonymous: true,

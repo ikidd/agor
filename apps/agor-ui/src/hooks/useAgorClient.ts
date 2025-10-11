@@ -18,18 +18,19 @@ interface UseAgorClientResult {
 interface UseAgorClientOptions {
   url?: string;
   accessToken?: string | null;
+  allowAnonymous?: boolean;
 }
 
 /**
  * Create and manage Agor daemon client connection
  *
- * @param options - Connection options (url, accessToken)
+ * @param options - Connection options (url, accessToken, allowAnonymous)
  * @returns Client instance, connection state, and error
  */
 export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClientResult {
-  const { url = 'http://localhost:3030', accessToken } = options;
+  const { url = 'http://localhost:3030', accessToken, allowAnonymous = false } = options;
   const [connected, setConnected] = useState(false);
-  const [connecting, setConnecting] = useState(!!accessToken); // Only connecting if we have a token
+  const [connecting, setConnecting] = useState(!!accessToken || allowAnonymous); // Connecting if we have token OR anonymous is allowed
   const [error, setError] = useState<string | null>(null);
   const clientRef = useRef<AgorClient | null>(null);
 
@@ -38,8 +39,8 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
     let client: AgorClient | null = null;
 
     async function connect() {
-      // Don't create client if no access token
-      if (!accessToken) {
+      // Don't create client if no access token and anonymous not allowed
+      if (!accessToken && !allowAnonymous) {
         setConnecting(false);
         setConnected(false);
         setError(null);
@@ -50,35 +51,11 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
       setConnecting(true);
       setError(null);
 
-      // Create client and let socket.io handle connection
-      client = createClient(url);
+      // Create client (autoConnect: false, so we control connection timing)
+      client = createClient(url, false);
       clientRef.current = client;
 
-      // Authenticate with JWT
-      try {
-        await client.authenticate({
-          strategy: 'jwt',
-          accessToken,
-        });
-      } catch (err) {
-        if (mounted) {
-          setError('Authentication failed. Please log in again.');
-          setConnecting(false);
-          setConnected(false);
-        }
-        return;
-      }
-
-      // Check if socket is already connected after authentication
-      if (client.io.connected) {
-        if (mounted) {
-          setConnected(true);
-          setConnecting(false);
-          setError(null);
-        }
-      }
-
-      // Setup socket event listeners
+      // Setup socket event listeners BEFORE connecting
       client.io.on('connect', () => {
         if (mounted) {
           setConnected(true);
@@ -101,13 +78,74 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
         }
       });
 
-      // Set a reasonable timeout for initial connection
-      setTimeout(() => {
-        if (mounted && !clientRef.current?.io.connected) {
-          setError('Connection timeout. Make sure daemon is running on :3030');
+      // Now manually connect the socket
+      client.io.connect();
+
+      // Wait for connection before authenticating
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Connection timeout'));
+          }, 5000);
+
+          if (client.io.connected) {
+            clearTimeout(timeout);
+            resolve();
+            return;
+          }
+
+          client.io.once('connect', () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+
+          client.io.once('connect_error', err => {
+            clearTimeout(timeout);
+            reject(err);
+          });
+        });
+      } catch (err) {
+        if (mounted) {
+          setError('Failed to connect to daemon. Make sure it is running on :3030');
           setConnecting(false);
+          setConnected(false);
         }
-      }, 5000);
+        return; // Exit early, don't try to authenticate
+      }
+
+      // Authenticate with JWT or anonymous
+      try {
+        if (accessToken) {
+          // Authenticate with JWT token
+          await client.authenticate({
+            strategy: 'jwt',
+            accessToken,
+          });
+        } else if (allowAnonymous) {
+          // Authenticate anonymously
+          await client.authenticate({
+            strategy: 'anonymous',
+          });
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(
+            accessToken
+              ? 'Authentication failed. Please log in again.'
+              : 'Anonymous authentication failed. Check daemon configuration.'
+          );
+          setConnecting(false);
+          setConnected(false);
+        }
+        return;
+      }
+
+      // Authentication successful - connection is ready
+      if (mounted) {
+        setConnected(true);
+        setConnecting(false);
+        setError(null);
+      }
     }
 
     connect();
@@ -116,10 +154,13 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
     return () => {
       mounted = false;
       if (client?.io) {
-        client.io.close();
+        // Remove all listeners to prevent memory leaks
+        client.io.removeAllListeners();
+        // Disconnect gracefully
+        client.io.disconnect();
       }
     };
-  }, [url, accessToken]);
+  }, [url, accessToken, allowAnonymous]);
 
   return {
     client: clientRef.current,

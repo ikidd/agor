@@ -32,14 +32,32 @@ export default class ConfigSet extends Command {
   async run(): Promise<void> {
     const { args } = await this.parse(ConfigSet);
     const key = args.key as string;
-    const value = args.value as string;
+    const rawValue = args.value as string;
+
+    // Parse value to correct type (boolean, number, or string)
+    let value: string | boolean | number = rawValue;
+
+    // Convert boolean strings
+    if (rawValue === 'true') {
+      value = true;
+    } else if (rawValue === 'false') {
+      value = false;
+    } else if (/^-?\d+$/.test(rawValue)) {
+      // Convert integers
+      value = Number.parseInt(rawValue, 10);
+    } else if (/^-?\d+\.\d+$/.test(rawValue)) {
+      // Convert floats
+      value = Number.parseFloat(rawValue);
+    }
 
     try {
       await setConfigValue(key, value);
 
       // Mask API keys in output
       const displayValue =
-        key.includes('API_KEY') || key.includes('TOKEN') ? `${value.substring(0, 10)}...` : value;
+        (key.includes('API_KEY') || key.includes('TOKEN')) && typeof value === 'string'
+          ? `${value.substring(0, 10)}...`
+          : String(value);
 
       this.log(`${chalk.green('✓')} Set ${chalk.cyan(key)} = ${chalk.yellow(displayValue)}`);
     } catch (error) {

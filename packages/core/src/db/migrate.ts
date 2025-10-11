@@ -1,8 +1,23 @@
 /**
  * Database Migration Runner
  *
- * Handles schema migrations using Drizzle Kit.
- * Auto-creates tables on first run, applies migrations on subsequent runs.
+ * DEPRECATED: This file contains manual SQL schema creation and is kept for backwards compatibility.
+ *
+ * **New Approach (Recommended):**
+ * Use `drizzle-kit push` to automatically sync schema.ts to database:
+ *   - Run: `pnpm db:push` from packages/core
+ *   - Drizzle Kit reads schema.ts and generates SQL automatically
+ *   - No need to maintain manual CREATE TABLE statements
+ *   - Single source of truth: packages/core/src/db/schema.ts
+ *
+ * **This file is still used by:**
+ * - setup-db.ts for programmatic database initialization
+ * - Legacy code that calls initializeDatabase() directly
+ *
+ * **Migration Path:**
+ * For fresh databases: Use `pnpm db:push`
+ * For existing databases: Use `pnpm db:push` (will detect and apply schema changes)
+ * For seed data: Still use seedInitialData() from this file
  */
 
 import { sql } from 'drizzle-orm';
@@ -29,7 +44,7 @@ async function tablesExist(db: Database): Promise<boolean> {
   try {
     const result = await db.run(sql`
       SELECT name FROM sqlite_master
-      WHERE type='table' AND name IN ('sessions', 'tasks', 'boards', 'repos', 'messages')
+      WHERE type='table' AND name IN ('sessions', 'tasks', 'boards', 'repos', 'messages', 'users')
     `);
     return result.rows.length > 0;
   } catch (error) {
@@ -54,6 +69,7 @@ async function createInitialSchema(db: Database): Promise<void> {
         session_id TEXT PRIMARY KEY,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
+        created_by TEXT NOT NULL DEFAULT 'anonymous',
         status TEXT NOT NULL CHECK(status IN ('idle', 'running', 'completed', 'failed')),
         agent TEXT NOT NULL CHECK(agent IN ('claude-code', 'cursor', 'codex', 'gemini')),
         board_id TEXT,
@@ -95,6 +111,7 @@ async function createInitialSchema(db: Database): Promise<void> {
         created_at INTEGER NOT NULL,
         completed_at INTEGER,
         status TEXT NOT NULL CHECK(status IN ('created', 'running', 'completed', 'failed')),
+        created_by TEXT NOT NULL DEFAULT 'anonymous',
         data TEXT NOT NULL,
         FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
       )
@@ -118,6 +135,7 @@ async function createInitialSchema(db: Database): Promise<void> {
         board_id TEXT PRIMARY KEY,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
+        created_by TEXT NOT NULL DEFAULT 'anonymous',
         name TEXT NOT NULL,
         slug TEXT UNIQUE,
         data TEXT NOT NULL
@@ -175,6 +193,24 @@ async function createInitialSchema(db: Database): Promise<void> {
 
     await db.run(sql`
       CREATE INDEX IF NOT EXISTS messages_session_index_idx ON messages(session_id, "index")
+    `);
+
+    // Users table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT,
+        role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member', 'viewer')),
+        data TEXT NOT NULL
+      )
+    `);
+
+    await db.run(sql`
+      CREATE INDEX IF NOT EXISTS users_email_idx ON users(email)
     `);
   } catch (error) {
     throw new MigrationError(
@@ -268,13 +304,14 @@ export async function seedInitialData(db: Database): Promise<void> {
       const now = Date.now();
 
       await db.run(sql`
-        INSERT INTO boards (board_id, name, slug, created_at, updated_at, data)
+        INSERT INTO boards (board_id, name, slug, created_at, updated_at, created_by, data)
         VALUES (
           ${boardId},
           ${'Default'},
           ${'default'},
           ${now},
           ${now},
+          ${'anonymous'},
           ${JSON.stringify({
             description: 'Default board for all sessions',
             sessions: [],

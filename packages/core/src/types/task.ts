@@ -11,6 +11,9 @@ export interface Task {
   /** Session this task belongs to */
   session_id: SessionID;
 
+  /** User ID of the user who created this task */
+  created_by: string;
+
   /** Original user prompt (can be multi-line) */
   full_prompt: string;
 

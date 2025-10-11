@@ -5,7 +5,7 @@
  * Safe to run multiple times (idempotent).
  */
 
-import { access, constants, mkdir } from 'node:fs/promises';
+import { access, constants, mkdir, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createDatabase, initializeDatabase, seedInitialData } from '@agor/core/db';
@@ -66,8 +66,18 @@ export default class Init extends Command {
         return;
       }
 
+      // If force flag is set and directory exists, delete the database
+      if (flags.force && alreadyExists) {
+        this.log(`🗑️  Force re-initialization: removing existing database...`);
+        const dbExists = await this.pathExists(dbPath);
+        if (dbExists) {
+          await rm(dbPath, { force: true });
+          this.log(`   ✓ Deleted ${dbPath}`);
+        }
+      }
+
       // Create directory structure
-      this.log(`📁 Creating directory structure...`);
+      this.log(`\n📁 Creating directory structure...`);
       const dirs = [
         baseDir,
         join(baseDir, 'worktrees'),

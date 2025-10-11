@@ -2,11 +2,25 @@ import { getRepoReferenceOptions } from '@agor/core/config';
 import { Alert, App as AntApp, ConfigProvider, Spin, theme } from 'antd';
 import { App as AgorApp } from './components/App';
 import { LoginPage } from './components/LoginPage';
-import { useAgorClient, useAgorData, useAuth, useBoardActions, useSessionActions } from './hooks';
+import {
+  useAgorClient,
+  useAgorData,
+  useAuth,
+  useAuthConfig,
+  useBoardActions,
+  useSessionActions,
+} from './hooks';
 import { mockAgents } from './mocks';
 
 function AppContent() {
   const { message } = AntApp.useApp();
+
+  // Fetch daemon auth configuration
+  const {
+    config: authConfig,
+    loading: authConfigLoading,
+    error: authConfigError,
+  } = useAuthConfig();
 
   // Authentication
   const {
@@ -20,7 +34,8 @@ function AppContent() {
   } = useAuth();
 
   // Call ALL hooks unconditionally BEFORE any conditional returns
-  // Connect to daemon with authentication token (pass null if not authenticated)
+  // Connect to daemon with authentication token
+  // If auth not required and anonymous allowed, connect without token
   const {
     client,
     connected,
@@ -28,10 +43,18 @@ function AppContent() {
     error: connectionError,
   } = useAgorClient({
     accessToken: authenticated ? accessToken : null,
+    allowAnonymous: authConfig?.allowAnonymous ?? false,
   });
 
-  // Fetch data (will be empty if not connected)
-  const { sessions, tasks, boards, repos, loading, error: dataError } = useAgorData(client);
+  // Fetch data (only when connected and authenticated)
+  const {
+    sessions,
+    tasks,
+    boards,
+    repos,
+    loading,
+    error: dataError,
+  } = useAgorData(connected ? client : null);
 
   // Session actions
   const { createSession, forkSession, spawnSession, updateSession, deleteSession } =
@@ -41,13 +64,64 @@ function AppContent() {
   const { createBoard, updateBoard, deleteBoard } = useBoardActions(client);
 
   // NOW handle conditional rendering based on state
-  // Show login page if not authenticated
-  if (!authLoading && !authenticated) {
+  // Show loading while fetching auth config
+  if (authConfigLoading) {
+    return (
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+        <div
+          style={{
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Spin size="large" />
+          <div style={{ marginTop: 16, color: 'rgba(255, 255, 255, 0.65)' }}>Loading...</div>
+        </div>
+      </ConfigProvider>
+    );
+  }
+
+  // Show auth config error
+  if (authConfigError) {
+    return (
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+        <div
+          style={{
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+          }}
+        >
+          <Alert
+            type="warning"
+            message="Could not fetch daemon configuration"
+            description={
+              <div>
+                <p>{authConfigError.message}</p>
+                <p>Defaulting to requiring authentication. Start the daemon with:</p>
+                <p>
+                  <code>cd apps/agor-daemon && pnpm dev</code>
+                </p>
+              </div>
+            }
+            showIcon
+          />
+        </div>
+      </ConfigProvider>
+    );
+  }
+
+  // Show login page if auth is required and not authenticated
+  if (authConfig?.requireAuth && !authLoading && !authenticated) {
     return <LoginPage onLogin={login} error={authError} />;
   }
 
-  // Show loading while checking authentication
-  if (authLoading) {
+  // Show loading while checking authentication (only if auth is required)
+  if (authConfig?.requireAuth && authLoading) {
     return (
       <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
         <div
@@ -253,7 +327,27 @@ function AppContent() {
     }
   };
 
-  // Handle repo/worktree deletion
+  // Handle repo CRUD
+  const handleCreateRepo = async (data: { url: string; slug: string }) => {
+    if (!client) return;
+    try {
+      message.loading({ content: 'Cloning repository...', key: 'clone-repo', duration: 0 });
+
+      // Use the custom clone endpoint: POST /repos/clone
+      await client.service('repos/clone').create({
+        url: data.url,
+        slug: data.slug,
+      });
+
+      message.success({ content: 'Repository cloned successfully!', key: 'clone-repo' });
+    } catch (error) {
+      message.error({
+        content: `Failed to clone repository: ${error instanceof Error ? error.message : String(error)}`,
+        key: 'clone-repo',
+      });
+    }
+  };
+
   const handleDeleteRepo = async (repoId: string) => {
     if (!client) return;
     try {
@@ -325,6 +419,7 @@ function AppContent() {
       onCreateBoard={handleCreateBoard}
       onUpdateBoard={handleUpdateBoard}
       onDeleteBoard={handleDeleteBoard}
+      onCreateRepo={handleCreateRepo}
       onDeleteRepo={handleDeleteRepo}
       onDeleteWorktree={handleDeleteWorktree}
       onCreateWorktree={handleCreateWorktree}

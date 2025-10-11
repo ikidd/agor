@@ -16,6 +16,7 @@ import feathersExpress, { errorHandler, rest } from '@feathersjs/express';
 import type { Params } from '@feathersjs/feathers';
 import { feathers } from '@feathersjs/feathers';
 import socketio from '@feathersjs/socketio';
+import cors from 'cors';
 import express from 'express';
 import { createBoardsService } from './services/boards';
 import { createMessagesService } from './services/messages';
@@ -51,6 +52,19 @@ async function main() {
 
   // Create Feathers app
   const app = feathersExpress(feathers());
+
+  // Enable CORS for all REST API requests
+  app.use(
+    cors({
+      origin: [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://localhost:5176',
+      ],
+      credentials: true,
+    })
+  );
 
   // Parse JSON
   app.use(express.json());
@@ -94,6 +108,76 @@ async function main() {
   // Register users service (for authentication)
   const usersService = createUsersService(db);
   app.use('/users', usersService);
+
+  // Add hooks to inject created_by from authenticated user
+  app.service('sessions').hooks({
+    before: {
+      create: [
+        async context => {
+          // Inject user_id if authenticated, otherwise use 'anonymous'
+          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
+          const userId = (context.params as any).user?.user_id || 'anonymous';
+
+          if (Array.isArray(context.data)) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            context.data.forEach((item: any) => {
+              if (!item.created_by) item.created_by = userId;
+            });
+          } else if (context.data && !context.data.created_by) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            (context.data as any).created_by = userId;
+          }
+          return context;
+        },
+      ],
+    },
+  });
+
+  app.service('tasks').hooks({
+    before: {
+      create: [
+        async context => {
+          // Inject user_id if authenticated, otherwise use 'anonymous'
+          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
+          const userId = (context.params as any).user?.user_id || 'anonymous';
+
+          if (Array.isArray(context.data)) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            context.data.forEach((item: any) => {
+              if (!item.created_by) item.created_by = userId;
+            });
+          } else if (context.data && !context.data.created_by) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            (context.data as any).created_by = userId;
+          }
+          return context;
+        },
+      ],
+    },
+  });
+
+  app.service('boards').hooks({
+    before: {
+      create: [
+        async context => {
+          // Inject user_id if authenticated, otherwise use 'anonymous'
+          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
+          const userId = (context.params as any).user?.user_id || 'anonymous';
+
+          if (Array.isArray(context.data)) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            context.data.forEach((item: any) => {
+              if (!item.created_by) item.created_by = userId;
+            });
+          } else if (context.data && !context.data.created_by) {
+            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
+            (context.data as any).created_by = userId;
+          }
+          return context;
+        },
+      ],
+    },
+  });
 
   // Generate or load JWT secret
   let jwtSecret = config.daemon?.jwtSecret;
@@ -373,6 +457,10 @@ async function main() {
         timestamp: Date.now(),
         version: '0.1.0',
         database: DB_PATH,
+        auth: {
+          requireAuth: config.daemon?.requireAuth === true,
+          allowAnonymous: config.daemon?.allowAnonymous !== false,
+        },
       };
     },
   });

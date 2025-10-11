@@ -34,7 +34,9 @@ export function useAgorData(client: AgorClient | null): UseAgorDataResult {
 
   // Fetch all data
   const fetchData = useCallback(async () => {
-    if (!client) return;
+    if (!client) {
+      return;
+    }
 
     try {
       setLoading(true);

@@ -45,10 +45,28 @@ export interface AgorClient extends Application<ServiceTypes> {
  * Create Feathers client connected to agor-daemon
  *
  * @param url - Daemon URL (default: http://localhost:3030)
+ * @param autoConnect - Auto-connect socket (default: true for CLI, false for React)
  * @returns Feathers client instance with socket exposed
  */
-export function createClient(url: string = 'http://localhost:3030'): AgorClient {
-  const socket = io(url);
+export function createClient(
+  url: string = 'http://localhost:3030',
+  autoConnect: boolean = true
+): AgorClient {
+  // Configure socket.io with better defaults for React StrictMode and reconnection
+  const socket = io(url, {
+    // Auto-connect by default for CLI, manual control for React hooks
+    autoConnect,
+    // Reconnection settings
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5,
+    // Timeout settings
+    timeout: 10000,
+    // Transports (WebSocket preferred, fallback to polling)
+    transports: ['websocket', 'polling'],
+  });
+
   const client = feathers<ServiceTypes>() as AgorClient;
 
   client.configure(socketio(socket));

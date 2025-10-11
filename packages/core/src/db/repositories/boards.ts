@@ -41,8 +41,9 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
       last_updated: row.updated_at
         ? new Date(row.updated_at).toISOString()
         : new Date(row.created_at).toISOString(),
+      created_by: row.created_by,
       ...data,
-      sessions: data.sessions.map((s) => s as UUID),
+      sessions: data.sessions.map(s => s as UUID),
     };
   }
 
@@ -59,6 +60,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
       slug: board.slug ?? null,
       created_at: new Date(board.created_at ?? now),
       updated_at: board.last_updated ? new Date(board.last_updated) : new Date(now),
+      created_by: board.created_by ?? 'anonymous',
       data: {
         description: board.description,
         sessions: board.sessions ?? [],
@@ -95,7 +97,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
       throw new AmbiguousIdError(
         'Board',
         id,
-        results.map((r) => formatShortId(r.board_id))
+        results.map(r => formatShortId(r.board_id))
       );
     }
 
@@ -171,7 +173,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
   async findAll(): Promise<Board[]> {
     try {
       const rows = await this.db.select().from(boards).all();
-      return rows.map((row) => this.rowToBoard(row));
+      return rows.map(row => this.rowToBoard(row));
     } catch (error) {
       throw new RepositoryError(
         `Failed to find all boards: ${error instanceof Error ? error.message : String(error)}`,
@@ -277,7 +279,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
         throw new EntityNotFoundError('Board', boardId);
       }
 
-      board.sessions = board.sessions.filter((id) => id !== sessionId);
+      board.sessions = board.sessions.filter(id => id !== sessionId);
       return this.update(boardId, { sessions: board.sessions });
     } catch (error) {
       if (error instanceof RepositoryError) throw error;

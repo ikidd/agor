@@ -101,23 +101,24 @@ agor/
 
 ## Development Commands
 
-**CRITICAL:** Always run `@agor/core` package in watch mode when developing:
+**Simplified 2-process workflow:**
 
 ```bash
-# Terminal 1: Watch and rebuild @agor/core on changes
-cd packages/core
-pnpm dev
-
-# Terminal 2: Run daemon (auto-restarts when core rebuilds)
+# Terminal 1: Run daemon (watches & rebuilds core, then restarts daemon on changes)
 cd apps/agor-daemon
 pnpm dev
 
-# Terminal 3: Run UI
+# Terminal 2: Run UI dev server
 cd apps/agor-ui
 pnpm dev
 ```
 
-**Why this matters:** The `@agor/core` package exports BUILT files from `dist/`, not source files. When you edit `src/`, you must rebuild for changes to take effect. Running `pnpm dev` in `packages/core` watches for changes and auto-rebuilds.
+The daemon's `pnpm dev` uses `concurrently` to run:
+
+1. Core package watcher (`tsup --watch`) - rebuilds when core source changes
+2. Daemon watcher (`tsx watch`) - restarts when daemon source OR core dist changes
+
+This gives you a true 2-process workflow where editing core files automatically rebuilds and restarts the daemon!
 
 ### Daemon
 
@@ -130,15 +131,14 @@ curl http://localhost:3030/health  # Check health
 ### CLI
 
 ```bash
-# Run commands from project root
-pnpm agor session list              # List sessions
-pnpm agor session load-claude <id>  # Load Claude Code session
-pnpm agor repo add <url>            # Clone and register repo
-pnpm agor repo list                 # List repos
+# Run commands from project root using workspace flag
+pnpm -w agor session list              # List sessions
+pnpm -w agor session load-claude <id>  # Load Claude Code session
+pnpm -w agor repo add <url>            # Clone and register repo
+pnpm -w agor repo list                 # List repos
 
-# Or use the dev script directly
-cd apps/agor-cli
-./bin/dev.ts session list
+# Or use the filter flag directly
+pnpm --filter @agor/cli exec tsx bin/dev.ts session list
 ```
 
 ### UI
@@ -406,15 +406,13 @@ See `PROJECT.md` for detailed roadmap.
 
 **Symptom:** After editing files in `packages/core/src/`, the daemon throws errors like `this.repository.findAll is not a function`.
 
-**Root Cause:** The `@agor/core` package exports BUILT files from `dist/`, not source files. When tsx runs the daemon, it loads the compiled `dist/` files. If you edit source but don't rebuild, tsx serves stale code.
+**Root Cause:** This should NOT happen anymore with the new 2-process workflow. The daemon now watches `packages/core/src` directly and auto-restarts when you edit core files.
 
-**Solution:**
+**If it still happens:**
 
-1. Always run `pnpm dev` in `packages/core` (Terminal 1) - this watches and rebuilds on changes
-2. If you forgot, manually rebuild: `cd packages/core && pnpm build`
-3. The daemon will auto-restart when it detects changes in `dist/`
-
-**Prevention:** Follow the 3-terminal dev workflow documented above.
+1. Check that you're running the latest daemon dev script (should watch `../../packages/core/src`)
+2. Manually rebuild core: `cd packages/core && pnpm build`
+3. Restart the daemon: `cd apps/agor-daemon && pnpm dev`
 
 ### tsx watch mode not picking up changes
 

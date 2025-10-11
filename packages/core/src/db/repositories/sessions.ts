@@ -37,6 +37,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
       last_updated: row.updated_at
         ? new Date(row.updated_at).toISOString()
         : new Date(row.created_at).toISOString(),
+      created_by: row.created_by,
       ...row.data,
       tasks: row.data.tasks.map(id => id as UUID),
       repo: repoData

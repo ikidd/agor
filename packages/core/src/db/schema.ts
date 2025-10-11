@@ -16,6 +16,9 @@ export const sessions = sqliteTable(
     created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updated_at: integer('updated_at', { mode: 'timestamp_ms' }),
 
+    // User attribution
+    created_by: text('created_by', { length: 36 }).notNull().default('anonymous'),
+
     // Materialized for filtering/joins (cross-DB compatible)
     status: text('status', {
       enum: ['idle', 'running', 'completed', 'failed'],
@@ -89,6 +92,9 @@ export const tasks = sqliteTable(
     status: text('status', {
       enum: ['created', 'running', 'completed', 'failed'],
     }).notNull(),
+
+    // User attribution
+    created_by: text('created_by', { length: 36 }).notNull().default('anonymous'),
 
     data: text('data', { mode: 'json' })
       .$type<{
@@ -170,6 +176,9 @@ export const boards = sqliteTable(
     board_id: text('board_id', { length: 36 }).primaryKey(),
     created_at: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
     updated_at: integer('updated_at', { mode: 'timestamp_ms' }),
+
+    // User attribution
+    created_by: text('created_by', { length: 36 }).notNull().default('anonymous'),
 
     // Materialized for lookups
     name: text('name').notNull(),

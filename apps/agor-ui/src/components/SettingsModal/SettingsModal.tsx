@@ -11,6 +11,7 @@ export interface SettingsModalProps {
   onCreateBoard?: (board: Partial<Board>) => void;
   onUpdateBoard?: (boardId: string, updates: Partial<Board>) => void;
   onDeleteBoard?: (boardId: string) => void;
+  onCreateRepo?: (data: { url: string; slug: string }) => void;
   onDeleteRepo?: (repoId: string) => void;
   onDeleteWorktree?: (repoId: string, worktreeName: string) => void;
   onCreateWorktree?: (
@@ -27,6 +28,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onCreateBoard,
   onUpdateBoard,
   onDeleteBoard,
+  onCreateRepo,
   onDeleteRepo,
   onDeleteWorktree,
   onCreateWorktree,
@@ -63,6 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             children: (
               <ReposTable
                 repos={repos}
+                onCreate={onCreateRepo}
                 onDelete={onDeleteRepo}
                 onDeleteWorktree={onDeleteWorktree}
                 onCreateWorktree={onCreateWorktree}

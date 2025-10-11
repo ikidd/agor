@@ -26,6 +26,9 @@ export interface Board {
   created_at: string;
   last_updated: string;
 
+  /** User ID of the user who created this board */
+  created_by: string;
+
   /** Hex color for visual distinction */
   color?: string;
 
