@@ -11,9 +11,17 @@ interface UseBoardObjectsProps {
   board: Board | null;
   client: AgorClient | null;
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  deletedObjectsRef: React.MutableRefObject<Set<string>>;
+  eraserMode?: boolean;
 }
 
-export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProps) => {
+export const useBoardObjects = ({
+  board,
+  client,
+  setNodes,
+  deletedObjectsRef,
+  eraserMode = false,
+}: UseBoardObjectsProps) => {
   /**
    * Update an existing board object
    */
@@ -41,29 +49,13 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
     if (!board?.objects) return [];
 
     return Object.entries(board.objects).map(([objectId, objectData]) => {
-      if (objectData.type === 'text') {
-        return {
-          id: objectId,
-          type: 'text',
-          position: { x: objectData.x, y: objectData.y },
-          draggable: true,
-          data: {
-            objectId,
-            content: objectData.content,
-            fontSize: objectData.fontSize,
-            color: objectData.color,
-            background: objectData.background,
-            onUpdate: handleUpdateObject,
-          },
-        };
-      }
-
       // Zone node
       return {
         id: objectId,
         type: 'zone',
         position: { x: objectData.x, y: objectData.y },
         draggable: true,
+        className: eraserMode ? 'eraser-mode' : undefined,
         style: {
           width: objectData.width,
           height: objectData.height,
@@ -76,59 +68,13 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
           height: objectData.height,
           color: objectData.color,
           status: objectData.status,
+          x: objectData.x, // Include position in data for updates
+          y: objectData.y,
           onUpdate: handleUpdateObject,
         },
       };
     });
-  }, [board?.objects, handleUpdateObject]);
-
-  /**
-   * Add a text node at the specified position
-   */
-  const addTextNode = useCallback(
-    async (x: number, y: number) => {
-      if (!board || !client) return;
-
-      const objectId = `text-${Date.now()}`;
-
-      // Optimistic update
-      setNodes(nodes => [
-        ...nodes,
-        {
-          id: objectId,
-          type: 'text',
-          position: { x, y },
-          draggable: true,
-          data: {
-            objectId,
-            content: 'New text...',
-            fontSize: 16,
-            onUpdate: handleUpdateObject,
-          },
-        },
-      ]);
-
-      // Persist atomically
-      try {
-        await client.service('boards').patch(board.board_id, {
-          _action: 'upsertObject',
-          objectId,
-          objectData: {
-            type: 'text',
-            x,
-            y,
-            content: 'New text...',
-            fontSize: 16,
-          },
-        });
-      } catch (error) {
-        console.error('Failed to add text node:', error);
-        // Rollback
-        setNodes(nodes => nodes.filter(n => n.id !== objectId));
-      }
-    },
-    [board, client, setNodes, handleUpdateObject]
-  );
+  }, [board?.objects, handleUpdateObject, eraserMode]);
 
   /**
    * Add a zone node at the specified position
@@ -159,7 +105,7 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
             label: 'New Zone',
             width,
             height,
-            color: '#d9d9d9',
+            color: undefined, // Will use theme default (colorBorder)
             onUpdate: handleUpdateObject,
           },
         },
@@ -177,7 +123,7 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
             width,
             height,
             label: 'New Zone',
-            color: '#d9d9d9',
+            // No color specified - will use theme default
           },
         });
       } catch (error) {
@@ -196,6 +142,9 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
     async (objectId: string) => {
       if (!board || !client) return;
 
+      // Mark as deleted to prevent re-appearance during WebSocket updates
+      deletedObjectsRef.current.add(objectId);
+
       // Optimistic removal
       setNodes(nodes => nodes.filter(n => n.id !== objectId));
 
@@ -204,12 +153,19 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
           _action: 'removeObject',
           objectId,
         });
+
+        // After successful deletion, we can remove from the tracking set
+        // (the object will no longer exist in board.objects)
+        setTimeout(() => {
+          deletedObjectsRef.current.delete(objectId);
+        }, 1000);
       } catch (error) {
         console.error('Failed to delete object:', error);
-        // TODO: Rollback or show error
+        // Rollback: remove from deleted set
+        deletedObjectsRef.current.delete(objectId);
       }
     },
-    [board, client, setNodes]
+    [board, client, setNodes, deletedObjectsRef]
   );
 
   /**
@@ -224,6 +180,11 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
         const objects: Record<string, BoardObject> = {};
 
         for (const [objectId, position] of Object.entries(updates)) {
+          // Skip objects that have been deleted locally
+          if (deletedObjectsRef.current.has(objectId)) {
+            continue;
+          }
+
           const existingObject = board.objects?.[objectId];
           if (!existingObject) continue;
 
@@ -234,22 +195,23 @@ export const useBoardObjects = ({ board, client, setNodes }: UseBoardObjectsProp
           };
         }
 
+        if (Object.keys(objects).length === 0) {
+          return;
+        }
+
         await client.service('boards').patch(board.board_id, {
           _action: 'batchUpsertObjects',
           objects,
         });
-
-        console.log('✓ Object positions persisted:', Object.keys(updates).length, 'objects');
       } catch (error) {
         console.error('Failed to persist object positions:', error);
       }
     },
-    [board, client]
+    [board, client, deletedObjectsRef]
   );
 
   return {
     getBoardObjectNodes,
-    addTextNode,
     addZoneNode,
     deleteObject,
     batchUpdateObjectPositions,

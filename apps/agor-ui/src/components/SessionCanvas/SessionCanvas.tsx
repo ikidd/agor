@@ -1,11 +1,6 @@
 import type { AgorClient } from '@agor/core/api';
 import type { MCPServer, User } from '@agor/core/types';
-import {
-  BorderOutlined,
-  DeleteOutlined,
-  FontSizeOutlined,
-  SelectOutlined,
-} from '@ant-design/icons';
+import { BorderOutlined, DeleteOutlined, SelectOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
@@ -21,9 +16,10 @@ import {
   useNodesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './SessionCanvas.css';
 import type { Board, BoardObject, Session, Task } from '../../types';
 import SessionCard from '../SessionCard';
-import { TextNode, ZoneNode } from './canvas/BoardObjectNodes';
+import { ZoneNode } from './canvas/BoardObjectNodes';
 import { useBoardObjects } from './canvas/useBoardObjects';
 
 interface SessionCanvasProps {
@@ -83,7 +79,6 @@ const SessionNode = ({ data }: { data: SessionNodeData }) => {
 // Define nodeTypes outside component to avoid recreation on every render
 const nodeTypes = {
   sessionNode: SessionNode,
-  text: TextNode,
   zone: ZoneNode,
 };
 
@@ -104,7 +99,7 @@ const SessionCanvas = ({
   onOpenSettings,
 }: SessionCanvasProps) => {
   // Tool state for canvas annotations
-  const [activeTool, setActiveTool] = useState<'select' | 'text' | 'zone' | 'eraser'>('select');
+  const [activeTool, setActiveTool] = useState<'select' | 'zone' | 'eraser'>('select');
 
   // Zone drawing state (drag-to-draw)
   const [drawingZone, setDrawingZone] = useState<{
@@ -118,19 +113,27 @@ const SessionCanvas = ({
   const isDraggingRef = useRef(false);
   // Track positions we've explicitly set (to avoid being overwritten by other clients)
   const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  // Track objects we've deleted locally (to prevent them from reappearing during WebSocket updates)
+  const deletedObjectsRef = useRef<Set<string>>(new Set());
 
   // Initialize nodes and edges state BEFORE using them
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Track resize state
+  const resizeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingResizeUpdatesRef = useRef<Record<string, { width: number; height: number }>>({});
+  const isSyncingRef = useRef(false);
+
   // Board objects hook
-  const {
-    getBoardObjectNodes,
-    addTextNode,
-    addZoneNode,
-    deleteObject,
-    batchUpdateObjectPositions,
-  } = useBoardObjects({ board, client, setNodes });
+  const { getBoardObjectNodes, addZoneNode, deleteObject, batchUpdateObjectPositions } =
+    useBoardObjects({
+      board,
+      client,
+      setNodes,
+      deletedObjectsRef,
+      eraserMode: activeTool === 'eraser',
+    });
 
   // Convert sessions to React Flow nodes
   const initialNodes: Node[] = useMemo(() => {
@@ -259,41 +262,118 @@ const SessionCanvas = ({
   useEffect(() => {
     if (isDraggingRef.current) return; // Skip during drag
 
+    // Set syncing flag to prevent resize events from triggering during sync
+    isSyncingRef.current = true;
+
     // Merge session nodes + board object nodes
     const boardObjectNodes = getBoardObjectNodes();
     const allNodes = [...initialNodes, ...boardObjectNodes];
 
     setNodes(currentNodes => {
-      return allNodes.map(newNode => {
-        // Find existing node to preserve selection state
-        const existingNode = currentNodes.find(n => n.id === newNode.id);
+      return allNodes
+        .filter(newNode => {
+          // Filter out objects that were deleted locally (prevent re-appearance during WebSocket updates)
+          if (deletedObjectsRef.current.has(newNode.id)) {
+            return false;
+          }
+          return true;
+        })
+        .map(newNode => {
+          // Find existing node to preserve selection state
+          const existingNode = currentNodes.find(n => n.id === newNode.id);
 
-        const localPosition = localPositionsRef.current[newNode.id];
-        const incomingPosition = newNode.position;
-        const positionChanged =
-          localPosition &&
-          (Math.abs(localPosition.x - incomingPosition.x) > 1 ||
-            Math.abs(localPosition.y - incomingPosition.y) > 1);
+          const localPosition = localPositionsRef.current[newNode.id];
+          const incomingPosition = newNode.position;
+          const positionChanged =
+            localPosition &&
+            (Math.abs(localPosition.x - incomingPosition.x) > 1 ||
+              Math.abs(localPosition.y - incomingPosition.y) > 1);
 
-        if (positionChanged) {
-          delete localPositionsRef.current[newNode.id];
+          if (positionChanged) {
+            delete localPositionsRef.current[newNode.id];
+            return { ...newNode, selected: existingNode?.selected };
+          }
+
+          if (localPosition) {
+            return { ...newNode, position: localPosition, selected: existingNode?.selected };
+          }
+
+          // Preserve selected state from existing node
           return { ...newNode, selected: existingNode?.selected };
-        }
-
-        if (localPosition) {
-          return { ...newNode, position: localPosition, selected: existingNode?.selected };
-        }
-
-        // Preserve selected state from existing node
-        return { ...newNode, selected: existingNode?.selected };
-      });
+        });
     });
+
+    // Clear syncing flag after a short delay to allow React Flow to process changes
+    setTimeout(() => {
+      isSyncingRef.current = false;
+    }, 100);
   }, [initialNodes, getBoardObjectNodes, setNodes]);
 
   // Sync edges
   useEffect(() => {
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
+
+  // Intercept onNodesChange to detect resize events
+  const onNodesChange = useCallback(
+    changes => {
+      // Detect resize by checking for dimensions changes
+      changes.forEach(change => {
+        if (change.type === 'dimensions' && change.dimensions) {
+          // Skip if we're currently syncing from WebSocket updates
+          if (isSyncingRef.current) return;
+
+          const node = nodes.find(n => n.id === change.id);
+          if (node?.type === 'zone') {
+            // Accumulate resize updates
+            pendingResizeUpdatesRef.current[change.id] = {
+              width: change.dimensions.width,
+              height: change.dimensions.height,
+            };
+
+            // Clear existing timer
+            if (resizeTimerRef.current) {
+              clearTimeout(resizeTimerRef.current);
+            }
+
+            // Debounce: wait 500ms after last resize before persisting
+            resizeTimerRef.current = setTimeout(async () => {
+              const updates = pendingResizeUpdatesRef.current;
+              pendingResizeUpdatesRef.current = {};
+
+              if (!board || !client) return;
+
+              // Persist all resize changes
+              for (const [nodeId, dimensions] of Object.entries(updates)) {
+                const objectData = board.objects?.[nodeId];
+                if (objectData && objectData.type === 'zone') {
+                  const updatedObject = {
+                    ...objectData,
+                    width: dimensions.width,
+                    height: dimensions.height,
+                  };
+
+                  try {
+                    await client.service('boards').patch(board.board_id, {
+                      _action: 'upsertObject',
+                      objectId: nodeId,
+                      objectData: updatedObject,
+                    });
+                  } catch (error) {
+                    console.error('Failed to persist zone resize:', error);
+                  }
+                }
+              }
+            }, 500);
+          }
+        }
+      });
+
+      // Call the original handler
+      onNodesChangeInternal(changes);
+    },
+    [nodes, board, client, onNodesChangeInternal]
+  );
 
   // Handle node drag start
   const handleNodeDragStart: NodeDragHandler = useCallback(() => {
@@ -347,7 +427,7 @@ const SessionCanvas = ({
 
           for (const [nodeId, position] of Object.entries(updates)) {
             const node = currentNodes.find(n => n.id === nodeId);
-            if (node?.type === 'text' || node?.type === 'zone') {
+            if (node?.type === 'zone') {
               objectUpdates[nodeId] = position;
             } else {
               sessionUpdates[nodeId] = position;
@@ -380,45 +460,14 @@ const SessionCanvas = ({
     [board, client, nodes, batchUpdateObjectPositions]
   );
 
-  // Handle node resize - update zone dimensions
-  const handleNodeResize = useCallback(
-    (_event: unknown, node: Node) => {
-      if (!board || !client) return;
-      if (node.type !== 'zone') return;
-
-      const { width, height } = node.style || {};
-      if (!width || !height) return;
-
-      const objectData = board.objects?.[node.id];
-      if (!objectData || objectData.type !== 'zone') return;
-
-      // Update the zone object with new dimensions
-      const updatedObject: BoardObject = {
-        ...objectData,
-        width: Number(width),
-        height: Number(height),
-      };
-
-      // Persist the resize
-      client
-        .service('boards')
-        .patch(board.board_id, {
-          _action: 'upsertObject',
-          objectId: node.id,
-          objectData: updatedObject,
-        })
-        .catch((error: unknown) => {
-          console.error('Failed to persist zone resize:', error);
-        });
-    },
-    [board, client]
-  );
-
-  // Cleanup debounce timer on unmount
+  // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
       if (layoutUpdateTimerRef.current) {
         clearTimeout(layoutUpdateTimerRef.current);
+      }
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
       }
     };
   }, []);
@@ -434,18 +483,6 @@ const SessionCanvas = ({
     (event: React.PointerEvent) => {
       if (!reactFlowInstanceRef.current) return;
 
-      // Text tool: click to place
-      if (activeTool === 'text') {
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const position = reactFlowInstanceRef.current.screenToFlowPosition({
-          x: event.clientX - bounds.left,
-          y: event.clientY - bounds.top,
-        });
-        addTextNode(position.x, position.y);
-        setActiveTool('select');
-        return;
-      }
-
       // Zone tool: start drag-to-draw
       if (activeTool === 'zone') {
         setDrawingZone({
@@ -454,7 +491,7 @@ const SessionCanvas = ({
         });
       }
     },
-    [activeTool, addTextNode]
+    [activeTool]
   );
 
   const handlePointerMove = useCallback(
@@ -558,8 +595,8 @@ const SessionCanvas = ({
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       if (activeTool === 'eraser') {
-        // Only delete board objects (text/zone), not sessions
-        if (node.type === 'text' || node.type === 'zone') {
+        // Only delete board objects (zones), not sessions
+        if (node.type === 'zone') {
           deleteObject(node.id);
         }
         return;
@@ -581,7 +618,6 @@ const SessionCanvas = ({
         return;
       }
 
-      if (e.key === 't') setActiveTool('text');
       if (e.key === 'z') setActiveTool('zone');
       if (e.key === 'e') setActiveTool('eraser');
       if (e.key === 'Escape') setActiveTool('select');
@@ -589,7 +625,7 @@ const SessionCanvas = ({
         // Delete selected nodes
         const selectedNodes = nodes.filter(n => n.selected);
         selectedNodes.forEach(n => {
-          if (n.type === 'text' || n.type === 'zone') {
+          if (n.type === 'zone') {
             deleteObject(n.id);
           }
         });
@@ -606,14 +642,6 @@ const SessionCanvas = ({
         width: '100%',
         height: '100vh',
         position: 'relative',
-        cursor:
-          activeTool === 'text'
-            ? 'text'
-            : activeTool === 'zone'
-              ? 'crosshair'
-              : activeTool === 'eraser'
-                ? 'not-allowed'
-                : 'default',
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -644,7 +672,6 @@ const SessionCanvas = ({
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         onNodeClick={handleNodeClick}
-        onNodeResizeStop={handleNodeResize}
         onInit={instance => {
           reactFlowInstanceRef.current = instance;
         }}
@@ -659,20 +686,10 @@ const SessionCanvas = ({
         elementsSelectable={true}
         panOnDrag={activeTool === 'select'}
         colorMode="dark"
-        className="dark"
-        style={{
-          cursor:
-            activeTool === 'text'
-              ? 'text'
-              : activeTool === 'zone'
-                ? 'crosshair'
-                : activeTool === 'eraser'
-                  ? 'not-allowed'
-                  : 'default',
-        }}
+        className={`dark tool-mode-${activeTool}`}
       >
         <Background />
-        <Controls position="top-left">
+        <Controls position="top-left" showInteractive={false}>
           {/* Custom toolbox buttons */}
           <ControlButton
             onClick={e => {
@@ -685,18 +702,6 @@ const SessionCanvas = ({
             }}
           >
             <SelectOutlined style={{ fontSize: '16px' }} />
-          </ControlButton>
-          <ControlButton
-            onClick={e => {
-              e.stopPropagation();
-              setActiveTool('text');
-            }}
-            title="Add Text (T)"
-            style={{
-              borderLeft: activeTool === 'text' ? '3px solid #1677ff' : 'none',
-            }}
-          >
-            <FontSizeOutlined style={{ fontSize: '16px' }} />
           </ControlButton>
           <ControlButton
             onClick={e => {
@@ -727,8 +732,7 @@ const SessionCanvas = ({
         </Controls>
         <MiniMap
           nodeColor={node => {
-            // Handle board objects (text/zone)
-            if (node.type === 'text') return '#ffa940';
+            // Handle board objects (zones)
             if (node.type === 'zone') return '#d9d9d9';
 
             // Handle session nodes

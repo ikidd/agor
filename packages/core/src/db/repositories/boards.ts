@@ -325,8 +325,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
   /**
    * Atomically add or update a board object (text label or zone)
    *
-   * Uses SQLite json_set() / PostgreSQL jsonb_set() for safe concurrent updates.
-   * Each object ID is updated independently to prevent conflicts.
+   * Uses read-modify-write approach with proper serialization via update() method.
    */
   async upsertBoardObject(
     boardId: string,
@@ -336,40 +335,16 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
     try {
       const fullId = await this.resolveId(boardId);
 
-      // SQLite: json_set(data, '$.objects.key', json('value'))
-      // PostgreSQL: jsonb_set(data, '{objects,key}', '"value"'::jsonb)
-      //
-      // For now, we use a read-modify-write approach that works with both.
-      // In the future, we can optimize with database-specific functions.
       const current = await this.findById(fullId);
       if (!current) {
         throw new EntityNotFoundError('Board', boardId);
       }
 
-      const objects = current.objects || {};
-      objects[objectId] = objectData;
+      // Add or update the object
+      const updatedObjects = { ...(current.objects || {}), [objectId]: objectData };
 
-      await this.db
-        .update(boards)
-        .set({
-          data: {
-            description: current.description,
-            sessions: current.sessions,
-            color: current.color,
-            icon: current.icon,
-            layout: current.layout,
-            objects,
-          },
-          updated_at: new Date(),
-        })
-        .where(eq(boards.board_id, fullId));
-
-      const updated = await this.findById(fullId);
-      if (!updated) {
-        throw new RepositoryError('Failed to retrieve updated board');
-      }
-
-      return updated;
+      // Use the standard update method to ensure proper serialization
+      return this.update(fullId, { objects: updatedObjects });
     } catch (error) {
       if (error instanceof RepositoryError) throw error;
       if (error instanceof EntityNotFoundError) throw error;
@@ -392,30 +367,12 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
         throw new EntityNotFoundError('Board', boardId);
       }
 
-      const objects = current.objects || {};
-      delete objects[objectId];
+      // Remove the object
+      const updatedObjects = { ...(current.objects || {}) };
+      delete updatedObjects[objectId];
 
-      await this.db
-        .update(boards)
-        .set({
-          data: {
-            description: current.description,
-            sessions: current.sessions,
-            color: current.color,
-            icon: current.icon,
-            layout: current.layout,
-            objects,
-          },
-          updated_at: new Date(),
-        })
-        .where(eq(boards.board_id, fullId));
-
-      const updated = await this.findById(fullId);
-      if (!updated) {
-        throw new RepositoryError('Failed to retrieve updated board');
-      }
-
-      return updated;
+      // Use the standard update method to ensure proper serialization
+      return this.update(fullId, { objects: updatedObjects });
     } catch (error) {
       if (error instanceof RepositoryError) throw error;
       if (error instanceof EntityNotFoundError) throw error;

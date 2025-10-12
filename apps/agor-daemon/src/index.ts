@@ -230,18 +230,24 @@ async function main() {
           if (_action === 'upsertObject' && objectId && objectData) {
             const result = await boardsService.upsertBoardObject(context.id, objectId, objectData);
             context.result = result;
+            // Manually emit 'patched' event for WebSocket broadcasting
+            app.service('boards').emit('patched', result);
             return context;
           }
 
           if (_action === 'removeObject' && objectId) {
             const result = await boardsService.removeBoardObject(context.id, objectId);
             context.result = result;
+            // Manually emit 'patched' event for WebSocket broadcasting
+            app.service('boards').emit('patched', result);
             return context;
           }
 
           if (_action === 'batchUpsertObjects' && objects) {
             const result = await boardsService.batchUpsertBoardObjects(context.id, objects);
             context.result = result;
+            // Manually emit 'patched' event for WebSocket broadcasting
+            app.service('boards').emit('patched', result);
             return context;
           }
 
