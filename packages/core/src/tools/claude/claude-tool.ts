@@ -184,21 +184,20 @@ export class ClaudeTool implements ITool {
     const assistantMessageIds: MessageID[] = [];
     let capturedAgentSessionId: string | undefined;
 
-    // Iterate through assistant messages from Agent SDK
-    const streamStartTime = Date.now();
+    // Track current message being streamed
+    let currentMessageId: MessageID | null = null;
+    let streamStartTime = Date.now();
+    let firstTokenTime: number | null = null;
 
-    for await (const assistantMsg of this.promptService.promptSessionStreaming(
+    for await (const event of this.promptService.promptSessionStreaming(
       sessionId,
       prompt,
       taskId,
       permissionMode
     )) {
-      const messageReceivedTime = Date.now();
-      console.debug(`⏱️ [SDK] TTFB: ${messageReceivedTime - streamStartTime}ms`);
-
       // Capture Agent SDK session_id from first message
-      if (!capturedAgentSessionId && assistantMsg.agentSessionId) {
-        capturedAgentSessionId = assistantMsg.agentSessionId;
+      if (!capturedAgentSessionId && event.agentSessionId) {
+        capturedAgentSessionId = event.agentSessionId;
         console.log(
           `🔑 Captured Agent SDK session_id for Agor session ${sessionId}: ${capturedAgentSessionId}`
         );
@@ -210,69 +209,80 @@ export class ClaudeTool implements ITool {
         }
       }
 
-      // Generate message ID for this assistant message
-      const assistantMessageId = generateId() as MessageID;
+      // Handle partial streaming events (token-level chunks)
+      if (event.type === 'partial' && event.textChunk) {
+        // Start new message if needed
+        if (!currentMessageId) {
+          currentMessageId = generateId() as MessageID;
+          firstTokenTime = Date.now();
+          const ttfb = firstTokenTime - streamStartTime;
+          console.debug(`⏱️ [SDK] TTFB: ${ttfb}ms`);
 
-      // Extract text content for streaming
-      const textBlocks = assistantMsg.content.filter(b => b.type === 'text').map(b => b.text || '');
-      const fullTextContent = textBlocks.join('');
-
-      // If streaming callbacks provided, emit chunks
-      if (streamingCallbacks && fullTextContent) {
-        // Emit streaming:start
-        streamingCallbacks.onStreamStart(assistantMessageId, {
-          session_id: sessionId,
-          task_id: taskId,
-          role: 'assistant',
-          timestamp: new Date().toISOString(),
-        });
-
-        // Chunk text into 5-10 word segments at sentence boundaries
-        const chunks = this.chunkTextForStreaming(fullTextContent);
-        console.debug(`⏱️ [Streaming] ${chunks.length} chunks, ${fullTextContent.length} chars`);
-
-        // Emit chunks with small delays to simulate streaming
-        for (let i = 0; i < chunks.length; i++) {
-          streamingCallbacks.onStreamChunk(assistantMessageId, chunks[i]);
-
-          // Add 50ms delay between chunks for typewriter effect (skip delay on last chunk)
-          if (i < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 50));
+          if (streamingCallbacks) {
+            streamingCallbacks.onStreamStart(currentMessageId, {
+              session_id: sessionId,
+              task_id: taskId,
+              role: 'assistant',
+              timestamp: new Date().toISOString(),
+            });
           }
         }
 
-        // Emit streaming:end
-        const streamEndTime = Date.now();
-        streamingCallbacks.onStreamEnd(assistantMessageId);
-        console.debug(`⏱️ [Streaming] Complete in ${streamEndTime - streamStartTime}ms total`);
+        // Emit chunk immediately (no artificial delays - true streaming!)
+        if (streamingCallbacks) {
+          streamingCallbacks.onStreamChunk(currentMessageId, event.textChunk);
+        }
       }
+      // Handle complete message (save to database)
+      else if (event.type === 'complete' && event.content) {
+        // End streaming if active
+        if (currentMessageId && streamingCallbacks) {
+          const streamEndTime = Date.now();
+          streamingCallbacks.onStreamEnd(currentMessageId);
+          const totalTime = streamEndTime - streamStartTime;
+          const streamingTime = firstTokenTime ? streamEndTime - firstTokenTime : 0;
+          console.debug(
+            `⏱️ [Streaming] Complete - TTFB: ${firstTokenTime ? firstTokenTime - streamStartTime : 0}ms, streaming: ${streamingTime}ms, total: ${totalTime}ms`
+          );
+        }
 
-      // Generate content preview from text blocks
-      const contentPreview = fullTextContent.substring(0, 200);
+        // Use existing message ID or generate new one
+        const assistantMessageId = currentMessageId || (generateId() as MessageID);
 
-      // Create complete message in DB (triggers WebSocket broadcast)
-      const message: Message = {
-        message_id: assistantMessageId,
-        session_id: sessionId,
-        type: 'assistant',
-        role: 'assistant',
-        index: nextIndex++,
-        timestamp: new Date().toISOString(),
-        content_preview: contentPreview,
-        content: assistantMsg.content as Message['content'],
-        tool_uses: assistantMsg.toolUses,
-        task_id: taskId,
-        metadata: {
-          model: 'claude-sonnet-4-5-20250929',
-          tokens: {
-            input: 0, // TODO: Extract from SDK
-            output: 0,
+        // Extract text content for preview
+        const textBlocks = event.content.filter(b => b.type === 'text').map(b => b.text || '');
+        const fullTextContent = textBlocks.join('');
+        const contentPreview = fullTextContent.substring(0, 200);
+
+        // Create complete message in DB (triggers WebSocket broadcast)
+        const message: Message = {
+          message_id: assistantMessageId,
+          session_id: sessionId,
+          type: 'assistant',
+          role: 'assistant',
+          index: nextIndex++,
+          timestamp: new Date().toISOString(),
+          content_preview: contentPreview,
+          content: event.content as Message['content'],
+          tool_uses: event.toolUses,
+          task_id: taskId,
+          metadata: {
+            model: 'claude-sonnet-4-5-20250929',
+            tokens: {
+              input: 0, // TODO: Extract from SDK
+              output: 0,
+            },
           },
-        },
-      };
+        };
 
-      await this.messagesService.create(message);
-      assistantMessageIds.push(message.message_id);
+        await this.messagesService.create(message);
+        assistantMessageIds.push(message.message_id);
+
+        // Reset for next message
+        currentMessageId = null;
+        streamStartTime = Date.now();
+        firstTokenTime = null;
+      }
     }
 
     return {
@@ -362,15 +372,15 @@ export class ClaudeTool implements ITool {
     const outputTokens = 0;
     let capturedAgentSessionId: string | undefined;
 
-    for await (const assistantMsg of this.promptService.promptSessionStreaming(
+    for await (const event of this.promptService.promptSessionStreaming(
       sessionId,
       prompt,
       taskId,
       permissionMode
     )) {
       // Capture Agent SDK session_id from first message
-      if (!capturedAgentSessionId && assistantMsg.agentSessionId) {
-        capturedAgentSessionId = assistantMsg.agentSessionId;
+      if (!capturedAgentSessionId && event.agentSessionId) {
+        capturedAgentSessionId = event.agentSessionId;
         console.log(
           `🔑 Captured Agent SDK session_id for Agor session ${sessionId}: ${capturedAgentSessionId}`
         );
@@ -382,32 +392,40 @@ export class ClaudeTool implements ITool {
         }
       }
 
-      // Generate content preview from text blocks
-      const textBlocks = assistantMsg.content.filter(b => b.type === 'text').map(b => b.text);
-      const contentPreview = textBlocks.join('').substring(0, 200);
+      // Skip partial events in non-streaming mode
+      if (event.type === 'partial') {
+        continue;
+      }
 
-      const message: Message = {
-        message_id: generateId() as MessageID,
-        session_id: sessionId,
-        type: 'assistant',
-        role: 'assistant',
-        index: nextIndex++,
-        timestamp: new Date().toISOString(),
-        content_preview: contentPreview,
-        content: assistantMsg.content as Message['content'], // ContentBlock[] array
-        tool_uses: assistantMsg.toolUses,
-        task_id: taskId, // Link to task immediately so UI can display progressively
-        metadata: {
-          model: 'claude-sonnet-4-5-20250929',
-          tokens: {
-            input: inputTokens,
-            output: outputTokens,
+      // Handle complete messages only
+      if (event.type === 'complete' && event.content) {
+        // Generate content preview from text blocks
+        const textBlocks = event.content.filter(b => b.type === 'text').map(b => b.text);
+        const contentPreview = textBlocks.join('').substring(0, 200);
+
+        const message: Message = {
+          message_id: generateId() as MessageID,
+          session_id: sessionId,
+          type: 'assistant',
+          role: 'assistant',
+          index: nextIndex++,
+          timestamp: new Date().toISOString(),
+          content_preview: contentPreview,
+          content: event.content as Message['content'], // ContentBlock[] array
+          tool_uses: event.toolUses,
+          task_id: taskId, // Link to task immediately so UI can display progressively
+          metadata: {
+            model: 'claude-sonnet-4-5-20250929',
+            tokens: {
+              input: inputTokens,
+              output: outputTokens,
+            },
           },
-        },
-      };
+        };
 
-      await this.messagesService.create(message);
-      assistantMessageIds.push(message.message_id);
+        await this.messagesService.create(message);
+        assistantMessageIds.push(message.message_id);
+      }
     }
 
     return {

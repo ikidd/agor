@@ -76,6 +76,9 @@ export interface PromptResult {
 }
 
 export class ClaudePromptService {
+  /** Enable token-level streaming from Claude Agent SDK */
+  private static readonly ENABLE_TOKEN_STREAMING = true;
+
   constructor(
     private messagesRepo: MessagesRepository,
     private sessionsRepo: SessionRepository,
@@ -387,6 +390,8 @@ export class ClaudePromptService {
       pathToClaudeCodeExecutable: getClaudeCodePath(),
       // Allow access to common directories outside CWD (e.g., /tmp)
       additionalDirectories: ['/tmp', '/var/tmp'],
+      // Enable token-level streaming (yields partial messages as tokens arrive)
+      includePartialMessages: ClaudePromptService.ENABLE_TOKEN_STREAMING,
     };
 
     // Add permissionMode if provided
@@ -609,7 +614,9 @@ export class ClaudePromptService {
     permissionMode?: PermissionMode,
     chunkCallback?: (messageId: string, chunk: string) => void
   ): AsyncGenerator<{
-    content: Array<{
+    type: 'partial' | 'complete';
+    textChunk?: string; // For partial streaming events
+    content?: Array<{
       type: string;
       text?: string;
       id?: string;
@@ -636,21 +643,37 @@ export class ClaudePromptService {
         console.log(`   🔑 Captured Agent SDK session_id: ${capturedAgentSessionId}`);
       }
 
-      if (msg.type === 'assistant') {
+      // Handle partial streaming events (token-level streaming)
+      if (msg.type === 'stream_event' && ClaudePromptService.ENABLE_TOKEN_STREAMING) {
+        // biome-ignore lint/suspicious/noExplicitAny: SDK event structure is complex
+        const event = (msg as any).event;
+
+        // Extract text from content_block_delta events
+        if (event?.type === 'content_block_delta' && event?.delta?.type === 'text_delta') {
+          const textChunk = event.delta.text;
+          console.debug(`   📝 [Token stream] ${textChunk.length} chars`);
+
+          // Yield partial chunk immediately (enables real-time streaming)
+          yield {
+            type: 'partial',
+            textChunk,
+            agentSessionId: capturedAgentSessionId,
+          };
+        }
+      }
+      // Handle complete assistant messages
+      else if (msg.type === 'assistant') {
         const contentBlocks = this.processContentBlocks(msg.message?.content, messageCount);
         const toolUses = this.extractToolUses(contentBlocks);
 
-        console.log(`   [Message ${messageCount}] Yielding assistant message (progressive update)`);
+        console.log(`   [Message ${messageCount}] Yielding complete assistant message`);
 
-        // TODO: Add text chunk streaming here if chunkCallback provided
-        // For now, the Agent SDK doesn't expose token-level streaming
-        // We yield complete messages, but with chunkCallback we could buffer and emit chunks
-
-        // Yield this message immediately for progressive UI update
+        // Yield complete message for database storage
         yield {
+          type: 'complete',
           content: contentBlocks,
           toolUses: toolUses.length > 0 ? toolUses : undefined,
-          agentSessionId: capturedAgentSessionId, // Include SDK session_id with first message
+          agentSessionId: capturedAgentSessionId,
         };
       } else if (msg.type === 'result') {
         console.log(`   [Message ${messageCount}] Final result received`);
