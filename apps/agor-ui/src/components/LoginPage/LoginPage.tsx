@@ -122,13 +122,7 @@ export function LoginPage({ onLogin, loading = false, error }: LoginPageProps) {
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <Space direction="vertical" size={4}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              Need an account?{' '}
-              <Link href="#" onClick={e => e.preventDefault()}>
-                Contact your administrator
-              </Link>
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              CLI: <code>agor user create</code>
+              CLI: <code>$ agor user create</code>
             </Text>
           </Space>
         </div>

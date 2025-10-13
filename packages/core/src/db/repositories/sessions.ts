@@ -61,6 +61,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
         spawn_point_task_id: genealogyData.spawn_point_task_id as UUID | undefined,
         children: genealogyData.children.map(id => id as UUID),
       },
+      permission_config: row.data.permission_config,
     };
   }
 
@@ -70,6 +71,10 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
   private sessionToInsert(session: Partial<Session>): SessionInsert {
     const now = Date.now();
     const sessionId = session.session_id ?? generateId();
+
+    // DEBUG: Log what we're about to convert
+    console.log(`🔧 [sessionToInsert] Converting session to insert format:`);
+    console.log(`   session.permission_config: ${JSON.stringify(session.permission_config)}`);
 
     // Compute CWD based on worktree configuration
     let cwd: string;
@@ -124,6 +129,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
         tasks: session.tasks ?? [],
         message_count: session.message_count ?? 0,
         tool_use_count: session.tool_use_count ?? 0,
+        permission_config: session.permission_config,
       },
     };
   }
@@ -338,8 +344,31 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
         throw new EntityNotFoundError('Session', id);
       }
 
-      const merged = { ...current, ...updates };
+      // Merge updates into current session
+      const merged = {
+        ...current,
+        ...updates,
+      };
+
+      // Debug logging for permission_config persistence
+      if (updates.permission_config) {
+        console.log(`📝 [SessionRepository] Merging permission_config update`);
+        console.log(
+          `   Before merge - current.permission_config: ${JSON.stringify(current.permission_config)}`
+        );
+        console.log(`   Update permission_config: ${JSON.stringify(updates.permission_config)}`);
+        console.log(
+          `   After merge - merged.permission_config: ${JSON.stringify(merged.permission_config)}`
+        );
+      }
+
       const insert = this.sessionToInsert(merged);
+
+      // Debug: Log what we're about to write to DB
+      console.log(`🗄️  [SessionRepository] Writing to DB:`);
+      console.log(
+        `   insert.data.permission_config: ${JSON.stringify(insert.data.permission_config)}`
+      );
 
       await this.db
         .update(sessions)
@@ -349,6 +378,8 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
           data: insert.data,
         })
         .where(eq(sessions.session_id, fullId));
+
+      console.log(`✅ [SessionRepository] DB update complete`);
 
       const updated = await this.findById(fullId);
       if (!updated) {

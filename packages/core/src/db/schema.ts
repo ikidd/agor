@@ -65,6 +65,11 @@ export const sessions = sqliteTable(
         // Aggregates
         message_count: number;
         tool_use_count: number;
+
+        // Permission config (session-level tool approvals)
+        permission_config?: {
+          allowedTools?: string[];
+        };
       }>()
       .notNull(),
   },

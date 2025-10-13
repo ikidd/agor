@@ -10,15 +10,18 @@
 
 import type { Task } from '@agor/core/types';
 import { CheckOutlined, CloseOutlined, LockOutlined } from '@ant-design/icons';
-import { Button, Card, Descriptions, Space, Tag, Typography, theme } from 'antd';
+import { Button, Card, Descriptions, Radio, Space, Tag, Typography, theme } from 'antd';
 import type React from 'react';
+import { useState } from 'react';
 
 const { Text, Title } = Typography;
+
+type PermissionScope = 'once' | 'session' | 'project';
 
 interface PermissionRequestBlockProps {
   task: Task;
   isActive: boolean; // true if awaiting decision, false if approved/denied
-  onApprove?: (taskId: string) => void;
+  onApprove?: (taskId: string, scope: PermissionScope) => void;
   onDeny?: (taskId: string) => void;
 }
 
@@ -29,6 +32,7 @@ export const PermissionRequestBlock: React.FC<PermissionRequestBlockProps> = ({
   onDeny,
 }) => {
   const { token } = theme.useToken();
+  const [scope, setScope] = useState<PermissionScope>('once');
 
   if (!task.permission_request) {
     return null;
@@ -168,18 +172,34 @@ export const PermissionRequestBlock: React.FC<PermissionRequestBlockProps> = ({
 
         {/* Action Buttons - show only when active */}
         {isActive && (
-          <Space size={token.sizeUnit}>
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => onApprove?.(task.task_id)}
-              style={{ backgroundColor: token.colorSuccess }}
+          <Space direction="vertical" size={token.sizeUnit} style={{ width: '100%' }}>
+            {/* Radio group for scope selection */}
+            <Radio.Group
+              value={scope}
+              onChange={e => setScope(e.target.value)}
+              style={{ width: '100%' }}
             >
-              Approve
-            </Button>
-            <Button danger icon={<CloseOutlined />} onClick={() => onDeny?.(task.task_id)}>
-              Deny
-            </Button>
+              <Space direction="vertical" size={token.sizeUnit / 2}>
+                <Radio value="once">Allow once (this request only)</Radio>
+                <Radio value="session">Allow for this session</Radio>
+                <Radio value="project">Allow for this project</Radio>
+              </Space>
+            </Radio.Group>
+
+            {/* Action buttons */}
+            <Space size={token.sizeUnit}>
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() => onApprove?.(task.task_id, scope)}
+                style={{ backgroundColor: token.colorSuccess }}
+              >
+                Approve
+              </Button>
+              <Button danger icon={<CloseOutlined />} onClick={() => onDeny?.(task.task_id)}>
+                Deny
+              </Button>
+            </Space>
           </Space>
         )}
       </Space>

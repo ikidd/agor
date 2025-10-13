@@ -38,6 +38,8 @@ const { Text, Paragraph } = Typography;
  */
 type Block = { type: 'message'; message: Message } | { type: 'agent-chain'; messages: Message[] };
 
+type PermissionScope = 'once' | 'session' | 'project';
+
 interface TaskBlockProps {
   task: Task;
   messages: Message[];
@@ -49,7 +51,8 @@ interface TaskBlockProps {
     sessionId: string,
     requestId: string,
     taskId: string,
-    allow: boolean
+    allow: boolean,
+    scope: PermissionScope
   ) => void;
 }
 
@@ -280,13 +283,14 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
                 <PermissionRequestBlock
                   task={task}
                   isActive={task.status === 'awaiting_permission'}
-                  onApprove={taskId => {
+                  onApprove={(taskId, scope) => {
                     if (task.permission_request && sessionId) {
                       onPermissionDecision?.(
                         sessionId,
                         task.permission_request.request_id,
                         taskId,
-                        true
+                        true,
+                        scope
                       );
                     }
                   }}
@@ -296,7 +300,8 @@ export const TaskBlock: React.FC<TaskBlockProps> = ({
                         sessionId,
                         task.permission_request.request_id,
                         taskId,
-                        false
+                        false,
+                        'once' // Deny always uses 'once' scope
                       );
                     }
                   }}

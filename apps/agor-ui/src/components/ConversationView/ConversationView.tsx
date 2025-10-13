@@ -52,7 +52,8 @@ export interface ConversationViewProps {
     sessionId: string,
     requestId: string,
     taskId: string,
-    allow: boolean
+    allow: boolean,
+    scope: 'once' | 'session' | 'project'
   ) => void;
 }
 

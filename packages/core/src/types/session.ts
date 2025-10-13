@@ -56,4 +56,9 @@ export interface Session {
 
   // UI metadata
   description?: string;
+
+  // Permission config (session-level tool approvals)
+  permission_config?: {
+    allowedTools?: string[];
+  };
 }
