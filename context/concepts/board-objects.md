@@ -589,45 +589,76 @@ if (isSyncingRef.current) return;  // Skip during sync
 
 ## Future Improvements
 
-### 1. Parent-Child Locking (Grouping)
+### 1. Parent-Child Locking (Pinning to Zones)
 
-**Goal:** Lock sessions to zones so they move together.
+**Goal:** Pin sessions to zones so they move together as a group.
 
 **How It Works:**
 
-React Flow has native support via `parentId` property:
+React Flow has native support via the `parentId` property:
 
 ```typescript
-// Session locked to zone
+// Session pinned to zone
 const node = {
   id: sessionId,
   type: 'sessionNode',
-  position: { x: 100, y: 100 },
-  parentId: 'zone-123',  // Locked to this zone
-  extent: 'parent',       // Can't drag outside parent bounds
+  position: { x: 100, y: 100 },  // Position relative to parent zone
+  parentId: 'zone-123',           // Pinned to this zone
+  extent: 'parent',                // Optional: can't drag outside zone bounds
   data: { ... },
 };
 ```
 
 **Features:**
 
-- When zone moves, all children move automatically
-- Optional: `extent: "parent"` constrains child to stay within zone bounds
-- Optional: `expandParent: true` makes zone grow if child dragged to edge
+- When zone moves, all pinned sessions move automatically
+- Sessions maintain their relative position within the zone
+- Optional: `extent: "parent"` constrains sessions to stay within zone bounds
+- Optional: `expandParent: true` makes zone grow if session dragged to edge
 
-**Implementation Approach:**
+**User Interface:**
 
-**Option A: Keyboard Shortcut (Recommended)**
+**Drop Detection (Automatic Pinning)**
 
-- Press `G` to group selected sessions with selected zone
-- Press `U` to ungroup
-- Explicit user control
+When a session is dropped into a zone:
 
-**Option B: Drop Detection**
+1. On `handleNodeDragStop`, check if session overlaps with zone using `reactFlowInstance.getIntersectingNodes()`
+2. If session center is inside zone bounds, automatically set `parentId`
+3. Show visual feedback (pin icon appears in session card header)
+4. Session positions become relative to zone's top-left corner
 
-- On `handleNodeDragStop`, check if session overlaps with zone
-- If yes, automatically set `parentId`
-- More magical, less predictable
+**Pin Icon Toggle**
+
+- **Location:** Session card header (replaces drag handle when pinned)
+- **Icon:** `PushpinOutlined` / `PushpinFilled` from `@ant-design/icons`
+- **Behavior:**
+  - When **unpinned**: Show drag handle button as normal
+  - When **pinned**: Replace drag handle with pin icon (filled)
+  - Click pin icon → unpins session (removes `parentId`, converts position back to absolute coordinates)
+- **Tooltip:** "Pinned to {zone.label}" (or "Unpin from zone" on hover)
+
+**Session Card Changes:**
+
+```typescript
+// In SessionCard component
+{isPinned ? (
+  <Button
+    type="text"
+    size="small"
+    icon={<PushpinFilled />}
+    onClick={handleUnpin}
+    title={`Pinned to ${zoneName} (click to unpin)`}
+  />
+) : (
+  <Button
+    type="text"
+    size="small"
+    icon={<DragOutlined />}
+    className="drag-handle"
+    title="Drag to move"
+  />
+)}
+```
 
 **Data Storage:**
 
@@ -636,14 +667,111 @@ Store `parentId` in `board.layout`:
 ```typescript
 layout: {
   [sessionId]: {
-    x: number;
+    x: number;        // Absolute coordinates when unpinned, relative when pinned
     y: number;
-    parentId?: string;  // NEW: zone ID if grouped
+    parentId?: string;  // Zone ID if pinned, undefined if unpinned
   }
 }
 ```
 
-**Effort:** ~1-2 hours for basic functionality
+**Implementation Details:**
+
+1. **Pinning Logic (`SessionCanvas.tsx`):**
+
+```typescript
+const handleNodeDragStop = useCallback(
+  async (event, node) => {
+    if (node.type !== 'sessionNode') return;
+
+    // Check if session dropped inside a zone
+    const intersections = reactFlowInstance.getIntersectingNodes(node);
+    const zone = intersections.find(n => n.type === 'zone');
+
+    const currentParentId = board.layout?.[node.id]?.parentId;
+
+    if (zone && !currentParentId) {
+      // Pin to zone: convert absolute position to relative
+      const relativeX = node.position.x - zone.position.x;
+      const relativeY = node.position.y - zone.position.y;
+
+      await client.service('boards').patch(board.board_id, {
+        layout: {
+          ...board.layout,
+          [node.id]: { x: relativeX, y: relativeY, parentId: zone.id },
+        },
+      });
+    } else if (!zone && currentParentId) {
+      // Dragged outside zone: auto-unpin and convert to absolute position
+      await handleUnpin(node.id);
+    } else {
+      // Normal position update
+      await updatePosition(node.id, node.position.x, node.position.y);
+    }
+  },
+  [board, reactFlowInstance, client]
+);
+```
+
+2. **Unpinning Logic:**
+
+```typescript
+const handleUnpin = useCallback(
+  async (sessionId: string) => {
+    const node = nodes.find(n => n.id === sessionId);
+    const layout = board.layout?.[sessionId];
+    if (!node || !layout?.parentId) return;
+
+    // Convert relative position to absolute
+    const parentZone = nodes.find(n => n.id === layout.parentId);
+    const absoluteX = parentZone ? node.position.x + parentZone.position.x : node.position.x;
+    const absoluteY = parentZone ? node.position.y + parentZone.position.y : node.position.y;
+
+    await client.service('boards').patch(board.board_id, {
+      layout: {
+        ...board.layout,
+        [sessionId]: { x: absoluteX, y: absoluteY, parentId: undefined },
+      },
+    });
+  },
+  [nodes, board, client]
+);
+```
+
+3. **Node Construction:**
+
+```typescript
+// When building React Flow nodes from sessions
+const sessionNodes = sessions.map(session => {
+  const layout = board.layout?.[session.session_id];
+  return {
+    id: session.session_id,
+    type: 'sessionNode',
+    position: { x: layout?.x ?? 0, y: layout?.y ?? 0 },
+    parentId: layout?.parentId, // Set parent if pinned
+    extent: layout?.parentId ? 'parent' : undefined, // Optional: constrain to zone
+    data: {
+      session,
+      isPinned: !!layout?.parentId,
+      zoneName: layout?.parentId ? findZoneName(layout.parentId) : undefined,
+      onUnpin: () => handleUnpin(session.session_id),
+    },
+  };
+});
+```
+
+**Visual Feedback:**
+
+- Pinned sessions show pin icon instead of drag handle
+- Optional: Add subtle border color change when pinned
+- Optional: Show zone label in session card subtitle when pinned
+
+**Effort:** ~2-3 hours
+
+- Drop detection logic: 30 min
+- Coordinate conversion (relative ↔ absolute): 45 min
+- Pin icon UI in SessionCard: 30 min
+- Unpin handler: 30 min
+- Testing & edge cases: 45 min
 
 ### 2. Prompt Triggers (Kanban Automation)
 

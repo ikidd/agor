@@ -8,8 +8,10 @@ import type {
   UpdateUserInput,
   User,
 } from '@agor/core/types';
+import type { Application } from '@feathersjs/feathers';
 import { Modal, Tabs } from 'antd';
 import { BoardsTable } from './BoardsTable';
+import { ContextTable } from './ContextTable';
 import { MCPServersTable } from './MCPServersTable';
 import { ReposTable } from './ReposTable';
 import { UsersTable } from './UsersTable';
@@ -17,6 +19,7 @@ import { UsersTable } from './UsersTable';
 export interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
+  client: Application | null;
   boards: Board[];
   repos: Repo[];
   users: User[];
@@ -42,6 +45,7 @@ export interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   open,
   onClose,
+  client,
   boards,
   repos,
   users,
@@ -110,6 +114,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onDelete={onDeleteMCPServer}
               />
             ),
+          },
+          {
+            key: 'context',
+            label: 'Context',
+            children: <ContextTable client={client} />,
           },
           {
             key: 'users',

@@ -84,16 +84,14 @@ See [context/explorations/](context/explorations/) for detailed designs:
 
 # Critical path
 
-- [ ] model picker for claude
-- [ ] wrap up permissions-handling in Claude Code (currently, "allow for this session" doesn't session)
-- [ ] attach proper git sha to tasks: what was the latest commit when the task was created, mark whether -dirty or not
-- [ ] integrate concepts and reports in the information architecture
-- [ ] Finish MCP server integrations (3a): sort out the scoping stuff
-- [ ] stream answers in blocks
+- integrate Codex
+- figure out project / attach github metadata (issue and PR links)
+- attach proper git sha to tasks: what was the latest commit when the task was created, mark whether -dirty or not
+- integrate concepts and reports in the information architecture
 
 # Nice to have
 
-- [ ] get Codex/Gemini to work
+- [ ] get Gemini to work
 - [ ] allow attaching a PR link to the session metadata, add a text field to the "session settings"
 - [ ] show token count and $ (if it applies) per task/session
 - [ ] concept management (CRUD/CLI) shows as readonly - many-to-many per session

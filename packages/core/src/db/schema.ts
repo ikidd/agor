@@ -59,7 +59,7 @@ export const sessions = sqliteTable(
         };
 
         // Context
-        concepts: string[];
+        contextFiles: string[];
         tasks: string[];
 
         // Aggregates

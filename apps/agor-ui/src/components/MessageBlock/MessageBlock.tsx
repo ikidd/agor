@@ -172,11 +172,7 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
             typing={shouldUseTyping ? { step: 5, interval: 20 } : false}
             content={
               <div style={{ wordWrap: 'break-word' }}>
-                {isUser ? (
-                  textBeforeTools.filter(t => t.trim()).join('\n\n')
-                ) : (
-                  <MarkdownRenderer content={textBeforeTools} inline />
-                )}
+                <MarkdownRenderer content={textBeforeTools} inline />
               </div>
             }
             variant={isUser ? 'filled' : 'outlined'}

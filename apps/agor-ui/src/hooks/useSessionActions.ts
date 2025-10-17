@@ -79,7 +79,10 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
               updated_at: new Date().toISOString(),
             }
           : undefined,
-        concepts: [],
+        permission_config: {
+          mode: config.permissionMode || 'auto',
+        },
+        contextFiles: [],
         genealogy: {
           children: [],
         },

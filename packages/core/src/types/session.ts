@@ -1,10 +1,19 @@
 // src/types/session.ts
 
-import type { ConceptPath } from './concept';
+import type { ContextFilePath } from './context';
 import type { SessionID, TaskID } from './id';
 import type { SessionRepoContext } from './repo';
 
 export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+/**
+ * Permission mode controls how agents handle tool execution approvals
+ * - ask: Require approval for every tool use (most restrictive)
+ * - auto: Auto-approve safe operations, ask for dangerous ones (recommended)
+ * - on-failure: Auto-approve all, ask only when commands fail (Codex-specific)
+ * - allow-all: Auto-approve all operations (least restrictive)
+ */
+export type PermissionMode = 'ask' | 'auto' | 'on-failure' | 'allow-all';
 
 export interface Session {
   /** Unique session identifier (UUIDv7) */
@@ -31,8 +40,8 @@ export interface Session {
     current_sha: string;
   };
 
-  // Context (concept file paths relative to context/concepts/)
-  concepts: ConceptPath[];
+  // Context (context file paths relative to context/)
+  contextFiles: ContextFilePath[];
 
   // Genealogy
   genealogy: {
@@ -60,6 +69,8 @@ export interface Session {
   // Permission config (session-level tool approvals)
   permission_config?: {
     allowedTools?: string[];
+    /** Permission mode for agent tool execution */
+    mode?: PermissionMode;
   };
 
   // Model configuration (session-level model selection)

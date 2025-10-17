@@ -243,7 +243,7 @@ function AppContent() {
 
         // If there's an initial prompt, send it to the agent
         if (config.initialPrompt && config.initialPrompt.trim()) {
-          await handleSendPrompt(session.session_id, config.initialPrompt);
+          await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
         }
       } catch (error) {
         message.error(
@@ -275,15 +275,20 @@ function AppContent() {
     }
   };
 
-  // Handle send prompt - calls Claude via daemon
-  const handleSendPrompt = async (sessionId: string, prompt: string) => {
+  // Handle send prompt - calls Claude/Codex via daemon
+  const handleSendPrompt = async (
+    sessionId: string,
+    prompt: string,
+    permissionMode?: import('@agor/core/types').PermissionMode
+  ) => {
     if (!client) return;
 
     try {
-      message.loading({ content: 'Sending prompt to Claude...', key: 'prompt', duration: 0 });
+      message.loading({ content: 'Sending prompt...', key: 'prompt', duration: 0 });
 
       await client.service(`sessions/${sessionId}/prompt`).create({
         prompt,
+        permissionMode,
       });
 
       message.success({ content: 'Response received!', key: 'prompt' });
@@ -583,12 +588,12 @@ function App() {
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: '#3ac1b8', // Agor teal - primary brand color
+          colorPrimary: '#2e9a92', // Agor teal - primary brand color (darkened 20%)
           colorSuccess: '#52c41a', // Keep Ant Design's vibrant green
           colorWarning: '#faad14', // Keep Ant Design's amber
           colorError: '#ff4d4f', // Keep Ant Design's red
-          colorInfo: '#3ac1b8', // Match primary
-          colorLink: '#3ac1b8', // Match primary for consistency
+          colorInfo: '#2e9a92', // Match primary
+          colorLink: '#2e9a92', // Match primary for consistency
           borderRadius: 8, // Slightly more rounded for modern feel
         },
       }}

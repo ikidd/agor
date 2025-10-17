@@ -1,10 +1,11 @@
-import type { MCPServer } from '@agor/core/types';
+import type { MCPServer, PermissionMode } from '@agor/core/types';
 import { Divider, Form, Input, Modal } from 'antd';
 import React from 'react';
 import type { Session } from '../../types';
 import { MCPServerSelect } from '../MCPServerSelect';
 import type { ModelConfig } from '../ModelSelector';
 import { ModelSelector } from '../ModelSelector';
+import { PermissionModeSelector } from '../PermissionModeSelector';
 
 export interface SessionSettingsModalProps {
   open: boolean;
@@ -45,9 +46,17 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
         title: session.description || '',
         mcpServerIds: sessionMcpServerIds,
         modelConfig: session.model_config,
+        permissionMode: session.permission_config?.mode || 'auto',
       });
     }
-  }, [open, session.description, sessionMcpServerIds, session.model_config, form]);
+  }, [
+    open,
+    session.description,
+    sessionMcpServerIds,
+    session.model_config,
+    session.permission_config?.mode,
+    form,
+  ]);
 
   const handleOk = () => {
     form.validateFields().then(values => {
@@ -64,6 +73,14 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
         updates.model_config = {
           ...values.modelConfig,
           updated_at: new Date().toISOString(),
+        };
+      }
+
+      // Update permission config
+      if (values.permissionMode) {
+        updates.permission_config = {
+          ...session.permission_config,
+          mode: values.permissionMode,
         };
       }
 
@@ -108,6 +125,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           title: session.description || '',
           mcpServerIds: sessionMcpServerIds,
           modelConfig: session.model_config,
+          permissionMode: session.permission_config?.mode || 'auto',
         }}
       >
         <Form.Item
@@ -118,8 +136,19 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           <Input placeholder="Enter session title" />
         </Form.Item>
 
-        <Form.Item name="modelConfig" label="Claude Model">
-          <ModelSelector />
+        <Form.Item
+          name="modelConfig"
+          label={session.agent === 'codex' ? 'Codex Model' : 'Claude Model'}
+        >
+          <ModelSelector agent={session.agent} />
+        </Form.Item>
+
+        <Form.Item
+          name="permissionMode"
+          label="Permission Mode"
+          help="Control how the agent handles tool execution approvals"
+        >
+          <PermissionModeSelector agent={session.agent} />
         </Form.Item>
 
         <Divider />

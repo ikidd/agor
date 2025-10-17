@@ -268,7 +268,7 @@ const SessionCard = ({
         )}
 
         {/* Concepts */}
-        {session.concepts.length > 0 && (
+        {session.concepts && session.concepts.length > 0 && (
           <div style={{ marginBottom: 12 }}>
             <Space size={4} wrap>
               <Text type="secondary">📦</Text>

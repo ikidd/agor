@@ -342,39 +342,53 @@ const SessionDrawer = ({
               <ToolCountPill count={session.tool_use_count} />
             </Space>
             <Space size={8}>
-              {/* Permission Mode Selector - Different options per agent */}
+              {/* Permission Mode Selector - Agent-specific options using SDK terminology */}
               <Select
                 value={permissionMode}
                 onChange={handlePermissionModeChange}
-                style={{ width: 180 }}
+                style={{ width: 200 }}
                 size="small"
                 options={
                   session.agent === 'codex'
                     ? [
-                        // Codex SDK doesn't support interactive approval like Claude
-                        // Only show auto and allow-all modes
+                        // Codex SDK: approval_policy options (all 4 modes)
                         {
-                          label: '✅ Auto (Recommended)',
-                          value: 'auto',
+                          label: 'Untrusted',
+                          value: 'ask',
+                          title: 'Ask before every command (read-only sandbox)',
                         },
                         {
-                          label: '🔓 Allow All',
+                          label: 'On Request',
+                          value: 'auto',
+                          title: 'Model decides when to ask (conversational)',
+                        },
+                        {
+                          label: 'On Failure',
+                          value: 'on-failure',
+                          title: 'Ask only when commands fail',
+                        },
+                        {
+                          label: 'Never',
                           value: 'allow-all',
+                          title: 'Auto-approve all operations',
                         },
                       ]
                     : [
-                        // Claude Code supports full permission flow
+                        // Claude Agent SDK: permissionMode options
                         {
-                          label: '🔒 Ask (Read-Only)',
+                          label: 'Ask',
                           value: 'ask',
+                          title: 'Require approval for all tools (modal)',
                         },
                         {
-                          label: '✅ Auto (Recommended)',
+                          label: 'Auto',
                           value: 'auto',
+                          title: 'Model decides when to ask (modal)',
                         },
                         {
-                          label: '🔓 Allow All',
+                          label: 'Allow All',
                           value: 'allow-all',
+                          title: 'Auto-approve all operations',
                         },
                       ]
                 }

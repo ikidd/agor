@@ -16,10 +16,10 @@ export const mockAgentCodex: Agent = {
   id: 'codex' as AgentID,
   name: 'codex',
   icon: '💻',
-  installed: false,
-  version: '0.5.1',
-  description: 'OpenAI Codex - Advanced code generation and completion (Coming Soon)',
-  installable: false,
+  installed: true,
+  version: '0.46.0',
+  description: 'OpenAI Codex - GPT-5 powered software engineering agent with streaming support',
+  installable: true,
 };
 
 export const mockAgentCursor: Agent = {

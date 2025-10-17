@@ -2,12 +2,14 @@
 
 export * from './agent';
 export * from './board';
-export * from './concept';
+export * from './context';
 export * from './id';
 export * from './mcp';
 export * from './message';
+export * from './presence';
 export * from './repo';
 export * from './report';
+export type { PermissionMode } from './session';
 export * from './session';
 export * from './task';
 export * from './ui';

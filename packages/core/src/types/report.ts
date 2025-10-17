@@ -1,6 +1,6 @@
 // src/types/report.ts
 
-import type { ConceptPath } from './concept';
+import type { ContextFilePath } from './context';
 import type { TaskID } from './id';
 
 /**
@@ -53,10 +53,10 @@ export interface Report {
   content: string;
 
   /**
-   * Concepts extracted or referenced in this report
-   * Can reference existing concepts or suggest new ones
+   * Context files extracted or referenced in this report
+   * Can reference existing context files or suggest new ones
    */
-  concepts: ConceptPath[];
+  contextFiles: ContextFilePath[];
 
   /** When the report was generated */
   generated_at: string;

@@ -86,7 +86,6 @@ async function testSessionRepository(db: ReturnType<typeof createDatabase>) {
     genealogy: {
       children: [],
     },
-    concepts: ['auth', 'database'],
     tasks: [],
     message_count: 0,
     tool_use_count: 0,
@@ -107,9 +106,6 @@ async function testSessionRepository(db: ReturnType<typeof createDatabase>) {
   // Test JSON data integrity
   if (found.agent !== 'claude-code') {
     throw new Error('JSON data not preserved');
-  }
-  if (found.concepts?.length !== 2) {
-    throw new Error('JSON array not preserved');
   }
 
   console.log('  ✅ JSON data preserved correctly');

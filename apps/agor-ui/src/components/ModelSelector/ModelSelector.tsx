@@ -13,7 +13,20 @@ export interface ModelConfig {
 export interface ModelSelectorProps {
   value?: ModelConfig;
   onChange?: (config: ModelConfig) => void;
+  agent?: 'claude-code' | 'cursor' | 'codex' | 'gemini';
 }
+
+// Codex model options
+const CODEX_MODEL_OPTIONS = [
+  {
+    id: 'gpt-5-codex',
+    label: 'GPT-5 Codex (Default)',
+    description: 'Optimized for software engineering',
+  },
+  { id: 'codex-mini-latest', label: 'Codex Mini', description: 'Faster, lighter model' },
+  { id: 'gpt-4o', label: 'GPT-4o', description: 'General purpose model' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Smaller, faster model' },
+];
 
 /**
  * Model Selector Component
@@ -21,13 +34,21 @@ export interface ModelSelectorProps {
  * Allows users to choose between:
  * - Model aliases (e.g., 'claude-sonnet-4-5-latest') - automatically uses latest version
  * - Exact model IDs (e.g., 'claude-sonnet-4-5-20250929') - pins to specific release
+ *
+ * Shows agent-specific models based on the agent prop.
  */
-export const ModelSelector: React.FC<ModelSelectorProps> = ({ value, onChange }) => {
+export const ModelSelector: React.FC<ModelSelectorProps> = ({
+  value,
+  onChange,
+  agent = 'claude-code',
+}) => {
+  // Determine which model list to use based on agent
+  const isCodex = agent === 'codex';
+  const modelList = isCodex ? CODEX_MODEL_OPTIONS : AVAILABLE_CLAUDE_MODEL_ALIASES;
+
   // Determine initial mode based on whether the value is in the aliases list
   // If no value provided, default to 'alias' mode (recommended)
-  const isValueInAliases = value?.model
-    ? AVAILABLE_CLAUDE_MODEL_ALIASES.some(m => m.id === value.model)
-    : true; // Default to true when no value (will use alias mode)
+  const isValueInAliases = value?.model ? modelList.some(m => m.id === value.model) : true; // Default to true when no value (will use alias mode)
 
   const initialMode = value?.mode || (isValueInAliases ? 'alias' : 'exact');
   const [mode, setMode] = useState<'alias' | 'exact'>(initialMode);
@@ -37,7 +58,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({ value, onChange })
     if (onChange) {
       // When switching modes, provide a default model
       const defaultModel =
-        newMode === 'alias' ? AVAILABLE_CLAUDE_MODEL_ALIASES[0].id : 'claude-sonnet-4-5-20250929';
+        newMode === 'alias'
+          ? modelList[0].id
+          : isCodex
+            ? 'gpt-5-codex'
+            : 'claude-sonnet-4-5-20250929';
       onChange({
         mode: newMode,
         model: value?.model || defaultModel,
@@ -70,10 +95,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({ value, onChange })
           {mode === 'alias' && (
             <div style={{ marginLeft: 24, marginTop: 8 }}>
               <Select
-                value={value?.model || AVAILABLE_CLAUDE_MODEL_ALIASES[0].id}
+                value={value?.model || modelList[0].id}
                 onChange={handleModelChange}
                 style={{ width: '100%', minWidth: 400 }}
-                options={AVAILABLE_CLAUDE_MODEL_ALIASES.map(m => ({
+                options={modelList.map(m => ({
                   value: m.id,
                   label: m.id,
                 }))}
@@ -95,13 +120,17 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({ value, onChange })
               <Input
                 value={value?.model}
                 onChange={e => handleModelChange(e.target.value)}
-                placeholder="e.g., claude-opus-4-20250514"
+                placeholder={isCodex ? 'e.g., gpt-5-codex' : 'e.g., claude-opus-4-20250514'}
                 style={{ width: '100%', minWidth: 400 }}
               />
               <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255, 255, 255, 0.45)' }}>
                 Enter any model ID to pin to a specific version.{' '}
                 <Link
-                  href="https://docs.anthropic.com/en/docs/about-claude/models"
+                  href={
+                    isCodex
+                      ? 'https://platform.openai.com/docs/models'
+                      : 'https://docs.anthropic.com/en/docs/about-claude/models'
+                  }
                   target="_blank"
                   style={{ fontSize: 12 }}
                 >

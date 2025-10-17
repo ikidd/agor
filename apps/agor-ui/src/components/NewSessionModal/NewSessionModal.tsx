@@ -1,11 +1,12 @@
-import type { MCPServer } from '@agor/core/types';
+import type { MCPServer, PermissionMode } from '@agor/core/types';
 import { DownOutlined } from '@ant-design/icons';
 import { Collapse, Form, Input, Modal, Radio, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
-import type { Agent } from '../../types';
+import type { Agent, AgentName } from '../../types';
 import { AgentSelectionCard } from '../AgentSelectionCard';
 import { MCPServerSelect } from '../MCPServerSelect';
 import { type ModelConfig, ModelSelector } from '../ModelSelector';
+import { PermissionModeSelector } from '../PermissionModeSelector';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -44,6 +45,7 @@ export interface NewSessionConfig {
   // Advanced configuration
   modelConfig?: ModelConfig;
   mcpServerIds?: string[];
+  permissionMode?: PermissionMode;
 }
 
 export interface NewSessionModalProps {
@@ -97,6 +99,7 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
           initialWorktreeBranch: values.initialWorktreeBranch,
           modelConfig: values.modelConfig,
           mcpServerIds: values.mcpServerIds,
+          permissionMode: values.permissionMode,
         });
 
         form.resetFields();
@@ -122,16 +125,28 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
     // TODO: Implement installation flow
   };
 
-  // Validate form whenever fields change
+  // Validate form whenever fields change (debounced to avoid UI freeze)
   const handleFormChange = () => {
-    form
-      .validateFields()
-      .then(() => {
-        setIsFormValid(true);
-      })
-      .catch(() => {
-        setIsFormValid(false);
-      });
+    // Use setTimeout to debounce and avoid blocking the UI
+    setTimeout(() => {
+      // Only validate visible/required fields based on current mode
+      const fieldsToValidate: string[] = ['worktreeRef'];
+
+      if (repoSetupMode === 'new-worktree') {
+        fieldsToValidate.push('existingRepoSlug', 'newWorktreeName');
+      } else if (repoSetupMode === 'new-repo') {
+        fieldsToValidate.push('gitUrl', 'initialWorktreeName');
+      }
+
+      form
+        .validateFields(fieldsToValidate)
+        .then(() => {
+          setIsFormValid(true);
+        })
+        .catch(() => {
+          setIsFormValid(false);
+        });
+    }, 0);
   };
 
   return (
@@ -295,6 +310,15 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
                     help="Choose which Claude model to use (defaults to claude-sonnet-4-5-latest)"
                   >
                     <ModelSelector />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="permissionMode"
+                    label="Permission Mode"
+                    help="Control how the agent handles tool execution approvals"
+                    initialValue="auto"
+                  >
+                    <PermissionModeSelector agent={(selectedAgent as AgentName) || 'claude-code'} />
                   </Form.Item>
 
                   <Form.Item

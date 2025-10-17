@@ -372,7 +372,11 @@ export class ClaudePromptService {
     taskId?: TaskID,
     permissionMode?: PermissionMode,
     resume = true
-  ): Promise<{ query: AsyncGenerator; resolvedModel: string }> {
+  ): Promise<{
+    // biome-ignore lint/suspicious/noExplicitAny: SDK Message types include user, assistant, stream_event, result, etc.
+    query: AsyncGenerator<any, any, unknown>;
+    resolvedModel: string;
+  }> {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
@@ -475,10 +479,10 @@ export class ClaudePromptService {
         }
 
         // 2. Repo-scoped servers (if session has a repo)
-        if (session.repo_id) {
+        if (session.repo?.repo_id) {
           const repoServers = await this.mcpServerRepo.findAll({
             scope: 'repo',
-            scopeId: session.repo_id,
+            scopeId: session.repo.repo_id,
             enabled: true,
           });
           console.log(`   📍 Repo scope: ${repoServers.length} server(s)`);

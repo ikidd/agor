@@ -125,7 +125,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
         genealogy: session.genealogy ?? {
           children: [],
         },
-        concepts: session.concepts ?? [],
+        contextFiles: session.contextFiles ?? [],
         tasks: session.tasks ?? [],
         message_count: session.message_count ?? 0,
         tool_use_count: session.tool_use_count ?? 0,

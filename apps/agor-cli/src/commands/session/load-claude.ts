@@ -105,7 +105,6 @@ export default class SessionLoadClaude extends Command {
         genealogy: {
           children: [],
         },
-        concepts: [],
         tasks: [],
         message_count: conversation.length,
         tool_use_count: 0,
