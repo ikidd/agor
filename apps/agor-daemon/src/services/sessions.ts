@@ -16,7 +16,7 @@ import { DrizzleService } from '../adapters/drizzle';
 export interface SessionParams extends Params {
   query?: {
     status?: Session['status'];
-    agent?: Session['agent'];
+    agentic_tool?: Session['agentic_tool'];
     board_id?: string;
     $limit?: number;
     $skip?: number;
@@ -59,7 +59,7 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
 
     const forkedSession = await this.create(
       {
-        agent: parent.agent,
+        agentic_tool: parent.agentic_tool,
         status: 'idle',
         description: data.prompt,
         repo: parent.repo,
@@ -103,14 +103,14 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
    */
   async spawn(
     id: string,
-    data: { prompt: string; agent?: Session['agent']; task_id?: string },
+    data: { prompt: string; agentic_tool?: Session['agentic_tool']; task_id?: string },
     params?: SessionParams
   ): Promise<Session> {
     const parent = await this.get(id, params);
 
     const spawnedSession = await this.create(
       {
-        agent: data.agent || parent.agent,
+        agentic_tool: data.agentic_tool || parent.agentic_tool,
         status: 'idle',
         description: data.prompt,
         repo: parent.repo,

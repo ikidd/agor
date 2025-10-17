@@ -90,12 +90,18 @@ export type TaskID = UUID;
 export type BoardID = UUID;
 
 /**
- * Agent identifier
+ * Agentic tool identifier
  *
- * Uniquely identifies an agent configuration.
+ * Uniquely identifies an agentic coding tool configuration.
  *
  * @example
- * const agentId: AgentID = "01938abc-def1-7234-a8f3-9d2e1c4b5a6f";
+ * const agenticToolId: AgenticToolID = "01938abc-def1-7234-a8f3-9d2e1c4b5a6f";
+ */
+export type AgenticToolID = UUID;
+
+/**
+ * Agent identifier (deprecated, use AgenticToolID)
+ * @deprecated Use AgenticToolID instead
  */
 export type AgentID = UUID;
 

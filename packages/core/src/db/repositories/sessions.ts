@@ -32,7 +32,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
     return {
       session_id: row.session_id as UUID,
       status: row.status,
-      agent: row.agent,
+      agentic_tool: row.agentic_tool,
       created_at: new Date(row.created_at).toISOString(),
       last_updated: row.updated_at
         ? new Date(row.updated_at).toISOString()
@@ -107,14 +107,14 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
       created_at: new Date(session.created_at ? session.created_at : now),
       updated_at: session.last_updated ? new Date(session.last_updated) : new Date(now),
       status: session.status ?? 'idle',
-      agent: session.agent ?? 'claude-code',
+      agentic_tool: session.agentic_tool ?? 'claude-code',
       created_by: session.created_by ?? 'anonymous',
       board_id: null, // Board ID tracked separately in boards.sessions array
       parent_session_id: session.genealogy?.parent_session_id ?? null,
       forked_from_session_id: session.genealogy?.forked_from_session_id ?? null,
       data: {
-        agent_version: session.agent_version,
-        agent_session_id: session.agent_session_id, // Preserve Agent SDK session ID
+        agentic_tool_version: session.agentic_tool_version,
+        sdk_session_id: session.sdk_session_id, // Preserve SDK session ID for conversation continuity
         description: session.description,
         repo,
         git_state: session.git_state ?? {

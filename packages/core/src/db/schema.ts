@@ -2,10 +2,10 @@ import type { Message, PermissionMode, Session, Task, WorktreeConfig } from '@ag
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
- * Sessions table - Core primitive for all agent interactions
+ * Sessions table - Core primitive for all agentic tool interactions
  *
  * Hybrid schema strategy:
- * - Materialize columns we filter/join by (status, genealogy, agent, board)
+ * - Materialize columns we filter/join by (status, genealogy, agentic_tool, board)
  * - JSON blob for nested/rarely-queried data (git_state, repo config, etc.)
  */
 export const sessions = sqliteTable(
@@ -23,7 +23,7 @@ export const sessions = sqliteTable(
     status: text('status', {
       enum: ['idle', 'running', 'completed', 'failed'],
     }).notNull(),
-    agent: text('agent', {
+    agentic_tool: text('agentic_tool', {
       enum: ['claude-code', 'cursor', 'codex', 'gemini'],
     }).notNull(),
     board_id: text('board_id', { length: 36 }), // NULL = no board
@@ -35,8 +35,8 @@ export const sessions = sqliteTable(
     // JSON blob for everything else (cross-DB via json() type)
     data: text('data', { mode: 'json' })
       .$type<{
-        agent_version?: string;
-        agent_session_id?: string; // Agent SDK session ID for conversation continuity
+        agentic_tool_version?: string;
+        sdk_session_id?: string; // SDK session ID for conversation continuity (Claude Agent SDK, Codex SDK, etc.)
         description?: string;
 
         // Repository context
@@ -91,7 +91,7 @@ export const sessions = sqliteTable(
   },
   table => ({
     statusIdx: index('sessions_status_idx').on(table.status),
-    agentIdx: index('sessions_agent_idx').on(table.agent),
+    agenticToolIdx: index('sessions_agentic_tool_idx').on(table.agentic_tool),
     boardIdx: index('sessions_board_idx').on(table.board_id),
     createdIdx: index('sessions_created_idx').on(table.created_at),
     parentIdx: index('sessions_parent_idx').on(table.parent_session_id),

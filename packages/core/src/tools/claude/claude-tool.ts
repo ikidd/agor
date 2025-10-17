@@ -298,13 +298,13 @@ export class ClaudeTool implements ITool {
 
     if (this.sessionsRepo) {
       console.log(
-        `📝 About to update session with: ${JSON.stringify({ agent_session_id: agentSessionId })}`
+        `📝 About to update session with: ${JSON.stringify({ sdk_session_id: agentSessionId })}`
       );
       const updated = await this.sessionsRepo.update(sessionId, {
-        agent_session_id: agentSessionId,
+        sdk_session_id: agentSessionId,
       });
       console.log(`💾 Stored Agent SDK session_id in Agor session`);
-      console.log(`🔍 Verify: updated.agent_session_id = ${updated.agent_session_id}`);
+      console.log(`🔍 Verify: updated.sdk_session_id = ${updated.sdk_session_id}`);
     }
   }
 

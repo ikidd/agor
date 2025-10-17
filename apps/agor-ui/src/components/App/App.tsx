@@ -29,7 +29,7 @@ const { Content } = Layout;
 
 export interface AppProps {
   client: AgorClient | null;
-  user?: import('@agor/core/types').User | null;
+  user?: User | null;
   sessions: Session[];
   tasks: Record<string, Task[]>;
   availableAgents: Agent[];
@@ -47,7 +47,7 @@ export interface AppProps {
   onSendPrompt?: (
     sessionId: string,
     prompt: string,
-    permissionMode?: import('../SessionDrawer').PermissionMode
+    permissionMode?: PermissionMode
   ) => void;
   onUpdateSession?: (sessionId: string, updates: Partial<Session>) => void;
   onDeleteSession?: (sessionId: string) => void;
@@ -126,11 +126,11 @@ export const App: React.FC<AppProps> = ({
 
   const handleSendPrompt = async (
     prompt: string,
-    permissionMode?: import('../SessionDrawer').PermissionMode
+    permissionMode?: PermissionMode
   ) => {
     if (selectedSessionId) {
       const session = sessions.find(s => s.session_id === selectedSessionId);
-      const agentName = session?.agent || 'agent';
+      const agentName = session?.agentic_tool || 'agentic_tool';
 
       // Show loading state
       console.log(`Sending prompt to ${agentName}...`, {

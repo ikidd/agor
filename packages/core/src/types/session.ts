@@ -1,5 +1,6 @@
 // src/types/session.ts
 
+import type { AgenticToolName } from './agentic-tool';
 import type { ContextFilePath } from './context';
 import type { SessionID, TaskID } from './id';
 import type { SessionRepoContext } from './repo';
@@ -7,7 +8,7 @@ import type { SessionRepoContext } from './repo';
 export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
 
 /**
- * Permission mode controls how agents handle tool execution approvals
+ * Permission mode controls how agentic tools handle execution approvals
  *
  * Claude Code modes (Claude Agent SDK):
  * - default: Prompt for each tool use (most restrictive)
@@ -37,19 +38,17 @@ export type ClaudeCodePermissionMode = 'default' | 'acceptEdits' | 'bypassPermis
 /** Codex specific permission modes */
 export type CodexPermissionMode = 'ask' | 'auto' | 'on-failure' | 'allow-all';
 
-export type AgentName = 'claude-code' | 'cursor' | 'codex' | 'gemini';
-
 /**
- * Get the default permission mode for a given agent
+ * Get the default permission mode for a given agentic tool
  *
- * Each agent has different permission mode capabilities and recommended defaults:
+ * Each agentic tool has different permission mode capabilities and recommended defaults:
  * - Claude Code: 'acceptEdits' (auto-accept file edits, prompt for other tools)
  * - Cursor: 'acceptEdits' (same as Claude Code)
  * - Codex: 'auto' (auto-approve safe operations, ask for dangerous ones)
  * - Gemini: 'acceptEdits' (same as Claude Code)
  */
-export function getDefaultPermissionMode(agent: AgentName): PermissionMode {
-  switch (agent) {
+export function getDefaultPermissionMode(agenticTool: AgenticToolName): PermissionMode {
+  switch (agenticTool) {
     case 'codex':
       return 'auto';
     case 'claude-code':
@@ -64,10 +63,12 @@ export interface Session {
   /** Unique session identifier (UUIDv7) */
   session_id: SessionID;
 
-  agent: 'claude-code' | 'cursor' | 'codex' | 'gemini';
-  agent_version?: string;
-  /** Agent SDK session ID for maintaining conversation history (Claude Agent SDK only) */
-  agent_session_id?: string;
+  /** Which agentic coding tool is running this session (Claude Code, Cursor, Codex, Gemini) */
+  agentic_tool: AgenticToolName;
+  /** Agentic tool/CLI version */
+  agentic_tool_version?: string;
+  /** SDK session ID for maintaining conversation history (Claude Agent SDK, Codex SDK, etc.) */
+  sdk_session_id?: string;
   status: SessionStatus;
   created_at: string;
   last_updated: string;

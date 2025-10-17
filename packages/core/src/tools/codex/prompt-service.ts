@@ -237,7 +237,7 @@ approval_policy = "${approvalPolicy}"
     console.log(`🔍 [Codex] Starting prompt execution for session ${sessionId.substring(0, 8)}`);
     console.log(`   Working directory: ${session.repo.cwd}`);
     console.log(`   Permission mode: ${permissionMode || 'not specified (will use default)'}`);
-    console.log(`   Existing thread ID: ${session.agent_session_id || 'none (will create new)'}`);
+    console.log(`   Existing thread ID: ${session.sdk_session_id || 'none (will create new)'}`);
 
     // Determine effective permission mode (default to 'auto' for Codex)
     const effectivePermissionMode = (permissionMode ||
@@ -278,9 +278,9 @@ approval_policy = "${approvalPolicy}"
 
     // Start or resume thread
     let thread: Thread;
-    if (session.agent_session_id) {
-      console.log(`🔄 [Codex] Resuming thread: ${session.agent_session_id}`);
-      thread = this.codex.resumeThread(session.agent_session_id, threadOptions);
+    if (session.sdk_session_id) {
+      console.log(`🔄 [Codex] Resuming thread: ${session.sdk_session_id}`);
+      thread = this.codex.resumeThread(session.sdk_session_id, threadOptions);
 
       // If permission mode changed, send slash commands to update thread settings
       if (permissionModeChanged) {
@@ -335,7 +335,7 @@ approval_policy = "${approvalPolicy}"
         content?: string;
         is_error?: boolean;
       }> = [];
-      let threadId = session.agent_session_id || '';
+      let threadId = session.sdk_session_id || '';
       let resolvedModel: string | undefined;
       let previousText = ''; // Track previous text to emit only diffs
       let allToolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];

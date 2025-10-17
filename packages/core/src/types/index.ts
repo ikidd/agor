@@ -1,6 +1,7 @@
 // src/types/index.ts
 
 export * from './agent';
+export * from './agentic-tool';
 export * from './board';
 export * from './context';
 export * from './id';
@@ -10,7 +11,6 @@ export * from './presence';
 export * from './repo';
 export * from './report';
 export type {
-  AgentName,
   ClaudeCodePermissionMode,
   CodexPermissionMode,
   PermissionMode,

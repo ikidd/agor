@@ -397,7 +397,7 @@ export class ClaudePromptService {
     }
     console.log(`📂 Working directory: ${cwd}`);
 
-    this.logPromptStart(sessionId, prompt, cwd, resume ? session.agent_session_id : undefined);
+    this.logPromptStart(sessionId, prompt, cwd, resume ? session.sdk_session_id : undefined);
 
     // Get Claude Code path and log it
     const claudeCodePath = getClaudeCodePath();
@@ -463,12 +463,12 @@ export class ClaudePromptService {
     }
 
     // Add optional resume if session exists
-    if (resume && session.agent_session_id) {
-      options.resume = session.agent_session_id;
-      console.log(`📚 Resuming Agent SDK session: ${session.agent_session_id}`);
+    if (resume && session.sdk_session_id) {
+      options.resume = session.sdk_session_id;
+      console.log(`📚 Resuming Agent SDK session: ${session.sdk_session_id}`);
     } else {
       console.log(
-        `⚠️  NOT resuming - resume: ${resume}, agent_session_id: ${session.agent_session_id}`
+        `⚠️  NOT resuming - resume: ${resume}, sdk_session_id: ${session.sdk_session_id}`
       );
     }
 

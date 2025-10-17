@@ -7,7 +7,7 @@ export interface Agent {
   /** Unique agent configuration identifier (UUIDv7) */
   id: AgentID;
 
-  name: AgentName;
+  name: AgenticToolName;
   icon: string;
   installed: boolean;
   version?: string;

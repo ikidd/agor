@@ -220,7 +220,7 @@ export class CodexTool implements ITool {
     console.log(`🔑 Captured Codex thread ID for Agor session ${sessionId}: ${threadId}`);
 
     if (this.sessionsRepo) {
-      await this.sessionsRepo.update(sessionId, { agent_session_id: threadId });
+      await this.sessionsRepo.update(sessionId, { sdk_session_id: threadId });
       console.log(`💾 Stored Codex thread ID in Agor session`);
     }
   }
