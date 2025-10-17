@@ -390,26 +390,39 @@ export class ClaudePromptService {
     console.log(`   Mode: ${modelConfig?.mode || 'default (no config)'}`);
     console.log(`   Model: ${model}`);
 
-    this.logPromptStart(
-      sessionId,
-      prompt,
-      session.repo.cwd,
-      resume ? session.agent_session_id : undefined
-    );
+    // Validate CWD exists
+    const cwd = session.repo?.cwd || process.cwd();
+    if (!session.repo?.cwd) {
+      console.warn(`⚠️  Session ${sessionId} has no repo.cwd, using process.cwd(): ${cwd}`);
+    }
+    console.log(`📂 Working directory: ${cwd}`);
+
+    this.logPromptStart(sessionId, prompt, cwd, resume ? session.agent_session_id : undefined);
+
+    // Get Claude Code path and log it
+    const claudeCodePath = getClaudeCodePath();
+    console.log(`🔧 Claude CLI path: ${claudeCodePath}`);
 
     const options: Record<string, unknown> = {
-      cwd: session.repo.cwd,
+      cwd,
       systemPrompt: { type: 'preset', preset: 'claude_code' },
       settingSources: ['user', 'project'], // Load user + project permissions, auto-loads CLAUDE.md
       model, // Use configured model or default
-      pathToClaudeCodeExecutable: getClaudeCodePath(),
+      pathToClaudeCodeExecutable: claudeCodePath,
       // Allow access to common directories outside CWD (e.g., /tmp)
       additionalDirectories: ['/tmp', '/var/tmp'],
       // Enable token-level streaming (yields partial messages as tokens arrive)
       includePartialMessages: ClaudePromptService.ENABLE_TOKEN_STREAMING,
+      // Enable debug logging to see what's happening
+      debug: true,
     };
 
+    console.log(`📋 SDK options (before query call):`, JSON.stringify(options, null, 2));
+
     // Add permissionMode if provided
+    // For Claude Code sessions, the UI should pass Claude SDK permission modes directly:
+    // 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+    // No mapping needed - UI is responsible for showing correct options per agent type
     if (permissionMode) {
       options.permissionMode = permissionMode;
       console.log(`🛡️  Setting permissionMode: ${permissionMode}`);
@@ -428,6 +441,7 @@ export class ClaudePromptService {
     }
 
     // Add PreToolUse hook if permission service is available and taskId provided
+    // This enables Agor's custom permission UI (WebSocket-based) instead of CLI prompts
     if (this.permissionService && taskId) {
       console.log(`🛡️  Registering PreToolUse hook for task ${taskId}`);
       options.hooks = {
@@ -459,7 +473,9 @@ export class ClaudePromptService {
     }
 
     // Fetch and configure MCP servers for this session (hierarchical scoping)
-    if (this.sessionMCPRepo && this.mcpServerRepo) {
+    // NOTE: Currently disabled for testing session resumption
+    // biome-ignore lint/correctness/noConstantCondition: Temporarily disabled for testing
+    if (false && this.sessionMCPRepo && this.mcpServerRepo) {
       try {
         const allServers: Array<{
           // biome-ignore lint/suspicious/noExplicitAny: MCPServer type from multiple sources
@@ -565,6 +581,7 @@ export class ClaudePromptService {
           }
 
           options.mcpServers = mcpConfig;
+          console.log(`   🔧 MCP config being passed to SDK:`, JSON.stringify(mcpConfig, null, 2));
           if (allowedTools.length > 0) {
             options.allowedTools = allowedTools;
             console.log(`   🔧 Allowing ${allowedTools.length} MCP tools`);
@@ -576,11 +593,28 @@ export class ClaudePromptService {
       }
     }
 
+    console.log('📤 Calling query() with:');
+    console.log(`   prompt: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
+    console.log(`   options keys: ${Object.keys(options).join(', ')}`);
+    console.log(
+      `   Full query call:`,
+      JSON.stringify(
+        {
+          prompt,
+          options,
+        },
+        null,
+        2
+      )
+    );
+
     const result = query({
       prompt,
       // biome-ignore lint/suspicious/noExplicitAny: SDK Options type doesn't include all available fields
       options: options as any,
     });
+
+    console.log('✅ query() call returned, got async generator');
 
     return { query: result, resolvedModel: model };
   }

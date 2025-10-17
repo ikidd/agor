@@ -125,24 +125,12 @@ function AppContent() {
     typeof window !== 'undefined' &&
     !!(localStorage.getItem('agor-access-token') || localStorage.getItem('agor-refresh-token'));
 
-  // Debug logging
-  console.log('🔍 App state:', {
-    authenticated,
-    authLoading,
-    connected,
-    connecting,
-    hasTokens,
-    requireAuth: authConfig?.requireAuth,
-  });
-
   if (authConfig?.requireAuth && !authLoading && !authenticated && !hasTokens) {
-    console.log('➡️ Showing login page (no tokens)');
     return <LoginPage onLogin={login} error={authError} />;
   }
 
   // Show reconnecting state if we have tokens but lost connection
   if (authConfig?.requireAuth && hasTokens && (!connected || !authenticated)) {
-    console.log('🔄 Showing reconnecting state (have tokens but not connected/authenticated)');
     return (
       <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
         <div

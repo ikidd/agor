@@ -1,6 +1,12 @@
 import type { PermissionMode } from '@agor/core/types';
-import { LockOutlined, SafetyOutlined, UnlockOutlined } from '@ant-design/icons';
-import { Radio, Space, Typography } from 'antd';
+import {
+  EditOutlined,
+  ExperimentOutlined,
+  LockOutlined,
+  SafetyOutlined,
+  UnlockOutlined,
+} from '@ant-design/icons';
+import { Radio, Select, Space, Typography } from 'antd';
 
 const { Text } = Typography;
 
@@ -8,67 +14,136 @@ export interface PermissionModeSelectorProps {
   value?: PermissionMode;
   onChange?: (value: PermissionMode) => void;
   agent?: 'claude-code' | 'cursor' | 'codex' | 'gemini';
+  /** If true, renders as a compact Select dropdown instead of Radio buttons */
+  compact?: boolean;
+  /** Size for compact mode */
+  size?: 'small' | 'middle' | 'large';
+  /** Width for compact mode */
+  width?: number;
 }
 
-const PERMISSION_MODE_INFO: Record<
-  PermissionMode,
+// Claude Code permission modes (Claude Agent SDK)
+const CLAUDE_CODE_MODES: {
+  mode: PermissionMode;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+}[] = [
   {
-    label: string;
-    description: string;
-    icon: React.ReactNode;
-    color: string;
-  }
-> = {
-  ask: {
-    label: 'Ask (Read-Only)',
-    description: 'Require approval for every tool use',
+    mode: 'default',
+    label: 'Ask',
+    description: 'Prompt for each tool use (most restrictive)',
     icon: <LockOutlined />,
     color: '#f5222d', // Red
   },
-  auto: {
-    label: 'Auto (Recommended)',
-    description: 'Auto-approve safe operations, ask for dangerous ones',
-    icon: <SafetyOutlined />,
+  {
+    mode: 'acceptEdits',
+    label: 'Auto-accept edits',
+    description: 'Auto-accept file edits, ask for other tools (recommended)',
+    icon: <EditOutlined />,
     color: '#52c41a', // Green
   },
-  'allow-all': {
-    label: 'Allow All',
-    description: 'Auto-approve all operations',
+  {
+    mode: 'bypassPermissions',
+    label: 'Allow all',
+    description: 'Allow all operations without prompting',
     icon: <UnlockOutlined />,
     color: '#faad14', // Orange/yellow
   },
-};
+  {
+    mode: 'plan',
+    label: 'Plan mode',
+    description: 'Generate plan without executing',
+    icon: <ExperimentOutlined />,
+    color: '#1890ff', // Blue
+  },
+];
+
+// Codex permission modes (OpenAI Codex SDK)
+const CODEX_MODES: {
+  mode: PermissionMode;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+}[] = [
+  {
+    mode: 'ask',
+    label: 'Untrusted',
+    description: 'Read-only mode: View code and suggest changes only',
+    icon: <LockOutlined />,
+    color: '#f5222d', // Red
+  },
+  {
+    mode: 'auto',
+    label: 'On Request',
+    description: 'Auto-edit mode: Create/edit files, ask for shell commands',
+    icon: <SafetyOutlined />,
+    color: '#52c41a', // Green
+  },
+  {
+    mode: 'on-failure',
+    label: 'On Failure',
+    description: 'Auto-approve all, ask only when commands fail',
+    icon: <EditOutlined />,
+    color: '#faad14', // Orange/yellow
+  },
+  {
+    mode: 'allow-all',
+    label: 'Never',
+    description: 'Full-auto mode: No approval needed',
+    icon: <UnlockOutlined />,
+    color: '#722ed1', // Purple
+  },
+];
 
 export const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({
   value = 'auto',
   onChange,
-  agent,
+  agent = 'claude-code',
+  compact = false,
+  size = 'middle',
+  width = 200,
 }) => {
-  // Agent-specific descriptions
-  const getDescription = (mode: PermissionMode): string => {
-    if (agent === 'codex') {
-      if (mode === 'ask') return 'Suggest mode: View code and suggest changes only';
-      if (mode === 'auto') return 'Auto-edit mode: Create/edit files, ask for shell commands';
-      if (mode === 'allow-all') return 'Full-auto mode: No approval needed';
-    }
+  // Select modes based on agent type
+  const modes = agent === 'codex' ? CODEX_MODES : CLAUDE_CODE_MODES;
 
-    return PERMISSION_MODE_INFO[mode].description;
-  };
+  // Get default value based on agent type
+  const defaultValue = agent === 'codex' ? 'auto' : 'acceptEdits';
+  const effectiveValue = value || defaultValue;
 
+  // Compact mode: render as Select dropdown
+  if (compact) {
+    return (
+      <Select
+        value={effectiveValue}
+        onChange={onChange}
+        style={{ width }}
+        size={size}
+        suffixIcon={<SafetyOutlined />}
+        options={modes.map(({ mode, label, description }) => ({
+          label,
+          value: mode,
+          title: description,
+        }))}
+      />
+    );
+  }
+
+  // Full mode: render as Radio group with descriptions
   return (
-    <Radio.Group value={value} onChange={e => onChange?.(e.target.value)}>
+    <Radio.Group value={effectiveValue} onChange={e => onChange?.(e.target.value)}>
       <Space direction="vertical" style={{ width: '100%' }}>
-        {(Object.keys(PERMISSION_MODE_INFO) as PermissionMode[]).map(mode => (
+        {modes.map(({ mode, label, description, icon, color }) => (
           <Radio key={mode} value={mode}>
             <Space>
-              <span style={{ color: PERMISSION_MODE_INFO[mode].color }}>
-                {PERMISSION_MODE_INFO[mode].icon}
-              </span>
+              <span style={{ color }}>{icon}</span>
               <div>
-                <Text strong>{PERMISSION_MODE_INFO[mode].label}</Text>
+                <Text strong>{label}</Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  {getDescription(mode)}
+                  {description}
                 </Text>
               </div>
             </Space>

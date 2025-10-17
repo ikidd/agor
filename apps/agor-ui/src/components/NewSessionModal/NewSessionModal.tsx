@@ -316,7 +316,7 @@ export const NewSessionModal: React.FC<NewSessionModalProps> = ({
                     name="permissionMode"
                     label="Permission Mode"
                     help="Control how the agent handles tool execution approvals"
-                    initialValue="auto"
+                    initialValue={selectedAgent === 'codex' ? 'auto' : 'acceptEdits'}
                   >
                     <PermissionModeSelector agent={(selectedAgent as AgentName) || 'claude-code'} />
                   </Form.Item>

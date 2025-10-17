@@ -4,7 +4,6 @@ import {
   ApiOutlined,
   BranchesOutlined,
   ForkOutlined,
-  SafetyOutlined,
   SendOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
@@ -14,7 +13,6 @@ import {
   Divider,
   Drawer,
   Input,
-  Select,
   Space,
   Tag,
   Tooltip,
@@ -25,6 +23,7 @@ import React from 'react';
 import type { Session } from '../../types';
 import { ConversationView } from '../ConversationView';
 import { CreatedByTag } from '../metadata';
+import { PermissionModeSelector } from '../PermissionModeSelector';
 import {
   BranchPill,
   ConceptPill,
@@ -85,8 +84,14 @@ const SessionDrawer = ({
 }: SessionDrawerProps) => {
   const { token } = theme.useToken();
   const [inputValue, setInputValue] = React.useState('');
+
+  // Get agent-aware default permission mode (wrapped in useCallback for hook deps)
+  const getDefaultPermissionMode = React.useCallback((agent?: string): PermissionMode => {
+    return agent === 'codex' ? 'auto' : 'acceptEdits';
+  }, []);
+
   const [permissionMode, setPermissionMode] = React.useState<PermissionMode>(
-    session?.permission_config?.mode || 'auto'
+    session?.permission_config?.mode || getDefaultPermissionMode(session?.agent)
   );
   const [scrollToBottom, setScrollToBottom] = React.useState<(() => void) | null>(null);
 
@@ -94,8 +99,11 @@ const SessionDrawer = ({
   React.useEffect(() => {
     if (session?.permission_config?.mode) {
       setPermissionMode(session.permission_config.mode);
+    } else if (session?.agent) {
+      // Set default based on agent type if no permission mode is configured
+      setPermissionMode(getDefaultPermissionMode(session.agent));
     }
-  }, [session?.permission_config?.mode]);
+  }, [session?.permission_config?.mode, session?.agent, getDefaultPermissionMode]);
 
   // Scroll to bottom when drawer opens
   React.useEffect(() => {
@@ -337,57 +345,14 @@ const SessionDrawer = ({
               <ToolCountPill count={session.tool_use_count} />
             </Space>
             <Space size={8}>
-              {/* Permission Mode Selector - Agent-specific options using SDK terminology */}
-              <Select
+              {/* Permission Mode Selector - Agent-specific options */}
+              <PermissionModeSelector
                 value={permissionMode}
                 onChange={handlePermissionModeChange}
-                style={{ width: 200 }}
+                agent={session.agent}
+                compact
                 size="small"
-                options={
-                  session.agent === 'codex'
-                    ? [
-                        // Codex SDK: approval_policy options (all 4 modes)
-                        {
-                          label: 'Untrusted',
-                          value: 'ask',
-                          title: 'Ask before every command (read-only sandbox)',
-                        },
-                        {
-                          label: 'On Request',
-                          value: 'auto',
-                          title: 'Model decides when to ask (conversational)',
-                        },
-                        {
-                          label: 'On Failure',
-                          value: 'on-failure',
-                          title: 'Ask only when commands fail',
-                        },
-                        {
-                          label: 'Never',
-                          value: 'allow-all',
-                          title: 'Auto-approve all operations',
-                        },
-                      ]
-                    : [
-                        // Claude Agent SDK: permissionMode options
-                        {
-                          label: 'Ask',
-                          value: 'ask',
-                          title: 'Require approval for all tools (modal)',
-                        },
-                        {
-                          label: 'Auto',
-                          value: 'auto',
-                          title: 'Model decides when to ask (modal)',
-                        },
-                        {
-                          label: 'Allow All',
-                          value: 'allow-all',
-                          title: 'Auto-approve all operations',
-                        },
-                      ]
-                }
-                suffixIcon={<SafetyOutlined />}
+                width={200}
               />
               <Button.Group>
                 <Tooltip title="Fork Session">

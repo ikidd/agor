@@ -43,11 +43,14 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
   // Reset form values when modal opens or props change
   React.useEffect(() => {
     if (open) {
+      // Get default permission mode based on agent type
+      const defaultPermissionMode = session.agent === 'codex' ? 'auto' : 'acceptEdits';
+
       form.setFieldsValue({
         title: session.description || '',
         mcpServerIds: sessionMcpServerIds,
         modelConfig: session.model_config,
-        permissionMode: session.permission_config?.mode || 'auto',
+        permissionMode: session.permission_config?.mode || defaultPermissionMode,
         issue_url: session.issue_url || '',
         pull_request_url: session.pull_request_url || '',
         custom_context: session.custom_context
@@ -58,6 +61,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
   }, [
     open,
     session.description,
+    session.agent,
     sessionMcpServerIds,
     session.model_config,
     session.permission_config?.mode,
@@ -156,7 +160,8 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           title: session.description || '',
           mcpServerIds: sessionMcpServerIds,
           modelConfig: session.model_config,
-          permissionMode: session.permission_config?.mode || 'auto',
+          permissionMode:
+            session.permission_config?.mode || (session.agent === 'codex' ? 'auto' : 'acceptEdits'),
           issue_url: session.issue_url || '',
           pull_request_url: session.pull_request_url || '',
           custom_context: session.custom_context

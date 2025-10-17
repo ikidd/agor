@@ -8,12 +8,28 @@ export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
 
 /**
  * Permission mode controls how agents handle tool execution approvals
- * - ask: Require approval for every tool use (most restrictive)
- * - auto: Auto-approve safe operations, ask for dangerous ones (recommended)
- * - on-failure: Auto-approve all, ask only when commands fail (Codex-specific)
- * - allow-all: Auto-approve all operations (least restrictive)
+ *
+ * Claude Code modes (Claude Agent SDK):
+ * - default: Prompt for each tool use (most restrictive)
+ * - acceptEdits: Auto-accept file edits, ask for other tools (recommended)
+ * - bypassPermissions: Allow all operations without prompting
+ * - plan: Plan mode (generate plan without executing)
+ *
+ * Codex modes (OpenAI Codex SDK):
+ * - ask: Require approval for every tool use (read-only/suggest mode)
+ * - auto: Auto-approve safe operations, ask for dangerous ones (auto-edit mode)
+ * - on-failure: Auto-approve all, ask only when commands fail
+ * - allow-all: Auto-approve all operations (full-auto mode)
  */
-export type PermissionMode = 'ask' | 'auto' | 'on-failure' | 'allow-all';
+export type PermissionMode =
+  | 'default'
+  | 'acceptEdits'
+  | 'bypassPermissions'
+  | 'plan'
+  | 'ask'
+  | 'auto'
+  | 'on-failure'
+  | 'allow-all';
 
 export interface Session {
   /** Unique session identifier (UUIDv7) */

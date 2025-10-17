@@ -74,7 +74,11 @@ async function main() {
     console.warn('⚠️  No ANTHROPIC_API_KEY found in config or environment');
     console.warn('   Run: agor config set credentials.ANTHROPIC_API_KEY <your-key>');
     console.warn('   Or set ANTHROPIC_API_KEY environment variable');
+    console.warn('   Note: Claude CLI can also use its own stored credentials (~/.claude/)');
   }
+  // NOTE: Do NOT set process.env.ANTHROPIC_API_KEY here!
+  // The Claude CLI has its own authentication system and setting the env var
+  // can interfere with it. The SDK will pass apiKey as an option instead.
 
   // Create Feathers app
   const app = feathersExpress(feathers());
@@ -518,6 +522,8 @@ async function main() {
     console.warn('   Run: agor config set credentials.OPENAI_API_KEY <your-key>');
     console.warn('   Or set OPENAI_API_KEY environment variable');
   }
+  // NOTE: Do NOT set process.env.OPENAI_API_KEY here for the same reason as ANTHROPIC_API_KEY
+  // Let the Codex CLI use its own auth system
 
   // Configure custom route for bulk message creation
   app.use('/messages/bulk', {
@@ -749,6 +755,21 @@ async function main() {
           })
           .catch(async error => {
             console.error(`❌ Error executing prompt for task ${task.task_id}:`, error);
+
+            // Check if error is due to stale Agent SDK session
+            if (
+              error.message?.includes('Claude Code process exited with code 1') &&
+              session.agent_session_id
+            ) {
+              console.warn(`⚠️  Detected stale Agent SDK session ${session.agent_session_id}`);
+              console.warn(`   Clearing agent_session_id to allow fresh session on retry`);
+
+              // Clear the stale agent_session_id so next prompt starts fresh
+              await sessionsService.patch(id, {
+                agent_session_id: null,
+              });
+            }
+
             // Mark task as failed
             await tasksService.patch(task.task_id, {
               status: 'failed',
