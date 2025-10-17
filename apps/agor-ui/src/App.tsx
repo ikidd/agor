@@ -86,8 +86,9 @@ function AppContent() {
     );
   }
 
-  // Show auth config error
-  if (authConfigError) {
+  // Show auth config error ONLY if we don't have a config yet (first load)
+  // If we already have a config cached, continue with that even if there's an error
+  if (authConfigError && !authConfig) {
     return (
       <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
         <div
@@ -119,8 +120,46 @@ function AppContent() {
   }
 
   // Show login page if auth is required and not authenticated
-  if (authConfig?.requireAuth && !authLoading && !authenticated) {
+  // BUT: Show a reconnecting message if we have tokens but aren't connected yet
+  const hasTokens =
+    typeof window !== 'undefined' &&
+    !!(localStorage.getItem('agor-access-token') || localStorage.getItem('agor-refresh-token'));
+
+  // Debug logging
+  console.log('🔍 App state:', {
+    authenticated,
+    authLoading,
+    connected,
+    connecting,
+    hasTokens,
+    requireAuth: authConfig?.requireAuth,
+  });
+
+  if (authConfig?.requireAuth && !authLoading && !authenticated && !hasTokens) {
+    console.log('➡️ Showing login page (no tokens)');
     return <LoginPage onLogin={login} error={authError} />;
+  }
+
+  // Show reconnecting state if we have tokens but lost connection
+  if (authConfig?.requireAuth && hasTokens && (!connected || !authenticated)) {
+    console.log('🔄 Showing reconnecting state (have tokens but not connected/authenticated)');
+    return (
+      <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+        <div
+          style={{
+            height: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Spin size="large" />
+          <div style={{ marginTop: 16, color: 'rgba(255, 255, 255, 0.65)' }}>
+            Reconnecting to daemon...
+          </div>
+        </div>
+      </ConfigProvider>
+    );
   }
 
   // Show loading while checking authentication (only if auth is required)

@@ -121,4 +121,11 @@ export interface Board {
 
   /** Optional emoji/icon */
   icon?: string;
+
+  /**
+   * Custom context for Handlebars templates (board-level)
+   * Example: { "team": "Backend", "sprint": 42, "deadline": "2025-03-15" }
+   * Access in templates: {{ board.context.team }}
+   */
+  custom_context?: Record<string, unknown>;
 }

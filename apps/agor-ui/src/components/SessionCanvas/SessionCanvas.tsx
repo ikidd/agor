@@ -2,6 +2,7 @@ import type { AgorClient } from '@agor/core/api';
 import type { BoardID, MCPServer, User, ZoneTrigger } from '@agor/core/types';
 import { BorderOutlined, DeleteOutlined, SelectOutlined } from '@ant-design/icons';
 import { Modal, Typography } from 'antd';
+import Handlebars from 'handlebars';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
@@ -1006,80 +1007,146 @@ const SessionCanvas = ({
       </ReactFlow>
 
       {/* Trigger confirmation modal */}
-      {triggerModal && (
-        <Modal
-          title={`Execute Trigger for "${triggerModal.zoneName}"?`}
-          open={true}
-          onOk={async () => {
-            if (!client) {
-              console.error('❌ Cannot execute trigger: client not available');
-              setTriggerModal(null);
-              return;
-            }
+      {triggerModal &&
+        (() => {
+          // Pre-render the template for display in modal
+          const session = sessions.find(s => s.session_id === triggerModal.sessionId);
+          let renderedPromptPreview = triggerModal.trigger.text;
 
-            console.log('✅ Execute trigger:', triggerModal.trigger);
-
+          if (session) {
             try {
-              const { sessionId, trigger } = triggerModal;
+              const context = {
+                session: {
+                  description: session.description || '',
+                  issue_url: session.issue_url || '',
+                  pull_request_url: session.pull_request_url || '',
+                  context: session.custom_context || {},
+                },
+                board: {
+                  name: board?.name || '',
+                  description: board?.description || '',
+                  context: board?.custom_context || {},
+                },
+              };
+              const template = Handlebars.compile(triggerModal.trigger.text);
+              renderedPromptPreview = template(context);
+            } catch (error) {
+              console.error('Template render error for preview:', error);
+              // Fall back to raw text
+            }
+          }
 
-              // All trigger types now use the unified prompt endpoint
-              // This ensures consistent behavior: task creation, agent invocation, streaming, etc.
-              switch (trigger.type) {
-                case 'prompt':
-                case 'task':
-                case 'subtask': {
-                  // Prefix subtasks for clarity
-                  const prompt =
-                    trigger.type === 'subtask' ? `[Subtask] ${trigger.text}` : trigger.text;
-
-                  await client.service(`sessions/${sessionId}/prompt`).create({
-                    prompt,
-                  });
-
-                  console.log(
-                    `✨ ${trigger.type} triggered for session ${sessionId.substring(0, 8)}: ${prompt.substring(0, 50)}...`
-                  );
-                  break;
+          return (
+            <Modal
+              title={`Execute Trigger for "${triggerModal.zoneName}"?`}
+              open={true}
+              onOk={async () => {
+                if (!client) {
+                  console.error('❌ Cannot execute trigger: client not available');
+                  setTriggerModal(null);
+                  return;
                 }
 
-                default:
-                  console.warn(`⚠️  Unknown trigger type: ${trigger.type}`);
-              }
-            } catch (error) {
-              console.error('❌ Failed to execute trigger:', error);
-            } finally {
-              setTriggerModal(null);
-            }
-          }}
-          onCancel={() => {
-            console.log('⏭️  Trigger skipped by user');
-            setTriggerModal(null);
-          }}
-          okText="Yes, Execute"
-          cancelText="No, Skip"
-        >
-          <Paragraph>
-            The session has been pinned to <Text strong>{triggerModal.zoneName}</Text>.
-          </Paragraph>
-          <Paragraph>
-            This zone has a <Text strong>{triggerModal.trigger.type}</Text> trigger configured:
-          </Paragraph>
-          <Paragraph
-            code
-            style={{
-              whiteSpace: 'pre-wrap',
-              background: '#1f1f1f',
-              padding: '12px',
-              borderRadius: '4px',
-            }}
-          >
-            {triggerModal.trigger.text}
-          </Paragraph>
-          <Paragraph type="secondary">
-            Would you like to execute this trigger for the session now?
-          </Paragraph>
-        </Modal>
-      )}
+                console.log('✅ Execute trigger:', triggerModal.trigger);
+
+                try {
+                  const { sessionId, trigger } = triggerModal;
+
+                  // Find the session to get its data for Handlebars context
+                  const session = sessions.find(s => s.session_id === sessionId);
+                  if (!session) {
+                    console.error('❌ Session not found:', sessionId);
+                    setTriggerModal(null);
+                    return;
+                  }
+
+                  // Build Handlebars context from session and board data
+                  const context = {
+                    session: {
+                      description: session.description || '',
+                      issue_url: session.issue_url || '',
+                      pull_request_url: session.pull_request_url || '',
+                      // User-defined custom context
+                      context: session.custom_context || {},
+                    },
+                    board: {
+                      name: board?.name || '',
+                      description: board?.description || '',
+                      context: board?.custom_context || {},
+                    },
+                  };
+
+                  // Render template with Handlebars
+                  let renderedPrompt: string;
+                  try {
+                    const template = Handlebars.compile(trigger.text);
+                    renderedPrompt = template(context);
+                    console.log('📝 Rendered template:', renderedPrompt);
+                  } catch (templateError) {
+                    console.error('❌ Handlebars template error:', templateError);
+                    // Fallback to raw text if template fails
+                    renderedPrompt = trigger.text;
+                  }
+
+                  // All trigger types now use the unified prompt endpoint
+                  // This ensures consistent behavior: task creation, agent invocation, streaming, etc.
+                  switch (trigger.type) {
+                    case 'prompt':
+                    case 'task':
+                    case 'subtask': {
+                      // Prefix subtasks for clarity
+                      const prompt =
+                        trigger.type === 'subtask' ? `[Subtask] ${renderedPrompt}` : renderedPrompt;
+
+                      await client.service(`sessions/${sessionId}/prompt`).create({
+                        prompt,
+                      });
+
+                      console.log(
+                        `✨ ${trigger.type} triggered for session ${sessionId.substring(0, 8)}: ${prompt.substring(0, 50)}...`
+                      );
+                      break;
+                    }
+
+                    default:
+                      console.warn(`⚠️  Unknown trigger type: ${trigger.type}`);
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to execute trigger:', error);
+                } finally {
+                  setTriggerModal(null);
+                }
+              }}
+              onCancel={() => {
+                console.log('⏭️  Trigger skipped by user');
+                setTriggerModal(null);
+              }}
+              okText="Yes, Execute"
+              cancelText="No, Skip"
+            >
+              <Paragraph>
+                The session has been pinned to <Text strong>{triggerModal.zoneName}</Text>.
+              </Paragraph>
+              <Paragraph>
+                This zone has a <Text strong>{triggerModal.trigger.type}</Text> trigger configured:
+              </Paragraph>
+              <Paragraph
+                code
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  background: '#1f1f1f',
+                  padding: '12px',
+                  borderRadius: '4px',
+                }}
+              >
+                {renderedPromptPreview}
+              </Paragraph>
+              <Paragraph type="secondary">
+                Would you like to execute this trigger for the session now?
+              </Paragraph>
+            </Modal>
+          );
+        })()}
     </div>
   );
 };

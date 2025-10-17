@@ -363,6 +363,8 @@ async function main() {
     await setConfigValue('daemon.jwtSecret', jwtSecret);
 
     console.log('🔑 Generated and saved persistent JWT secret to config');
+  } else {
+    console.log('🔑 Loaded existing JWT secret from config:', jwtSecret.substring(0, 16) + '...');
   }
 
   // Configure authentication options BEFORE creating service

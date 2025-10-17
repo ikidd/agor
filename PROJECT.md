@@ -84,16 +84,17 @@ See [context/explorations/](context/explorations/) for detailed designs:
 
 # Critical path
 
-- integrate Codex
-- figure out project / attach github metadata (issue and PR links)
+- test/improve Codex sdk integration
 - attach proper git sha to tasks: what was the latest commit when the task was created, mark whether -dirty or not
 - integrate concepts and reports in the information architecture
 - proper tool uses for codex, also improve storybook for various common tools, start thinking about the todo tool and the write (diff) tool too!
+- write doc website
 
 # Nice to have
 
-- [ ] get Gemini to work
-- [ ] allow attaching a PR link to the session metadata, add a text field to the "session settings"
-- [ ] show token count and $ (if it applies) per task/session
-- [ ] concept management (CRUD/CLI) shows as readonly - many-to-many per session
-- [ ] report management + production system
+- get Gemini to work
+- allow attaching a PR link to the session metadata, add a text field to the "session settings"
+- show token count and $ (if it applies) per task/session
+- concept management (CRUD/CLI) shows as readonly - many-to-many per session
+- report management + production system
+- `@`-trigerred autocomplete ?

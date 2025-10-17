@@ -40,8 +40,10 @@ export function useAuth(): UseAuthReturn {
 
   /**
    * Re-authenticate using stored token (with automatic refresh)
+   * Retries up to 3 times to handle daemon restarts gracefully
    */
-  const reAuthenticate = useCallback(async () => {
+  const reAuthenticate = useCallback(async (retryCount = 0) => {
+    const MAX_RETRIES = 5;
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
@@ -65,9 +67,9 @@ export function useAuth(): UseAuthReturn {
       // Connect the client first (since autoConnect is false)
       client.io.connect();
 
-      // Wait for connection
+      // Wait for connection (longer timeout for daemon restarts)
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        const timeout = setTimeout(() => reject(new Error('Connection timeout')), 10000);
 
         if (client.io.connected) {
           clearTimeout(timeout);
@@ -104,9 +106,13 @@ export function useAuth(): UseAuthReturn {
 
           client.io.close();
           return;
-        } catch (_accessTokenError) {
-          // Access token expired, try refresh token
-          console.log('Access token expired, attempting refresh...');
+        } catch (accessTokenError) {
+          // Access token expired or invalid, try refresh token
+          console.log(
+            'Access token failed:',
+            accessTokenError instanceof Error ? accessTokenError.message : accessTokenError,
+            '- attempting refresh...'
+          );
         }
       }
 
@@ -128,16 +134,22 @@ export function useAuth(): UseAuthReturn {
             error: null,
           });
 
-          console.log('✓ Token refreshed successfully');
+          console.log('✓ Token refreshed successfully after daemon restart');
           client.io.close();
           return;
-        } catch (_refreshError) {
-          // Refresh token also expired
-          console.log('Refresh token expired, need to login again');
+        } catch (refreshError) {
+          // Refresh token also expired or invalid
+          console.log(
+            'Refresh token failed:',
+            refreshError instanceof Error ? refreshError.message : refreshError,
+            '- need to login again'
+          );
         }
       }
 
       // Both tokens invalid or expired
+      console.error('❌ CLEARING TOKENS (both access and refresh tokens invalid/expired)');
+      console.trace('Token clearing stack trace');
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       setState({
@@ -148,16 +160,51 @@ export function useAuth(): UseAuthReturn {
         error: null,
       });
       client.io.close();
-    } catch (_error) {
-      // Connection or other error
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    } catch (error) {
+      // Connection or authentication error - retry if daemon just restarted
+      const errorMessage =
+        error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+      const errorName = error instanceof Error ? error.constructor.name : '';
+      const isConnectionError =
+        errorMessage.includes('connection') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('websocket') ||
+        errorMessage.includes('transport') ||
+        errorName === 'TransportError' ||
+        errorName === 'WebSocketError';
+
+      if (isConnectionError && retryCount < MAX_RETRIES) {
+        const delay = Math.min(2000 * 1.5 ** retryCount, 10000); // Exponential backoff: 2s, 3s, 4.5s, 6.75s, 10s (capped)
+        console.log(
+          `Connection failed (attempt ${retryCount + 1}/${MAX_RETRIES}), retrying in ${Math.round(delay)}ms...`
+        );
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return reAuthenticate(retryCount + 1);
+      }
+
+      // Max retries exceeded or auth error (not connection issue)
+      console.log('Failed to re-authenticate after max retries:', error);
+
+      // IMPORTANT: Don't clear tokens if this is a connection error
+      // The daemon might still be restarting, and we want to keep tokens for next retry
+      if (!isConnectionError) {
+        console.error('❌ CLEARING TOKENS due to authentication failure (not connection error)');
+        console.error('Error details:', error);
+        console.trace('Token clearing stack trace');
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+      } else {
+        console.log(
+          '✓ Keeping tokens in localStorage despite connection failure (daemon may be restarting)'
+        );
+      }
+
       setState({
         user: null,
         accessToken: null,
         authenticated: false,
         loading: false,
-        error: null,
+        error: isConnectionError ? 'Connection lost - waiting for daemon...' : null,
       });
     }
   }, []);
@@ -166,6 +213,46 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     reAuthenticate();
   }, [reAuthenticate]);
+
+  // Listen for daemon reconnection events (window.ononline, storage events, etc.)
+  // This helps recover from daemon restarts automatically
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // When tab becomes visible again, check if we need to re-auth
+      if (document.visibilityState === 'visible' && !state.authenticated) {
+        const hasTokens =
+          localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (hasTokens) {
+          console.log('Tab became visible, attempting re-authentication...');
+          reAuthenticate();
+        }
+      }
+    };
+
+    // Poll for daemon availability when we have tokens but aren't authenticated
+    // This handles the case where daemon restarts and we need to reconnect
+    let pollInterval: NodeJS.Timeout | null = null;
+    if (!state.authenticated && !state.loading) {
+      const hasTokens =
+        localStorage.getItem(ACCESS_TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY);
+      if (hasTokens) {
+        console.log('Starting reconnection polling (have tokens but not authenticated)...');
+        pollInterval = setInterval(() => {
+          console.log('Polling: attempting re-authentication...');
+          reAuthenticate();
+        }, 3000); // Poll every 3 seconds
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pollInterval) {
+        console.log('Stopping reconnection polling');
+        clearInterval(pollInterval);
+      }
+    };
+  }, [state.authenticated, state.loading, reAuthenticate]);
 
   // Auto-refresh token 5 minutes before expiration
   useEffect(() => {
@@ -273,18 +360,33 @@ export function useAuth(): UseAuthReturn {
       });
 
       // Authenticate
+      console.log('🔐 Attempting authentication with local strategy...');
       const result = await client.authenticate({
         strategy: 'local',
         email,
         password,
       });
 
+      console.log('✓ Authentication successful, got tokens:', {
+        hasAccessToken: !!result.accessToken,
+        hasRefreshToken: !!result.refreshToken,
+        user: result.user?.email,
+      });
+
       // Store both access and refresh tokens
+      console.log('💾 Saving tokens to localStorage...');
       localStorage.setItem(ACCESS_TOKEN_KEY, result.accessToken);
       if (result.refreshToken) {
         localStorage.setItem(REFRESH_TOKEN_KEY, result.refreshToken);
-        console.log('✓ Tokens stored in localStorage (access + refresh)');
       }
+
+      // Verify tokens were saved
+      const savedAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+      const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      console.log('✓ Tokens stored in localStorage:', {
+        accessTokenSaved: !!savedAccessToken,
+        refreshTokenSaved: !!savedRefreshToken,
+      });
 
       setState({
         user: result.user,
@@ -313,6 +415,8 @@ export function useAuth(): UseAuthReturn {
    * Logout
    */
   const logout = async () => {
+    console.log('🚪 Logout called, clearing tokens');
+    console.trace('Logout stack trace');
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     setState({

@@ -3,6 +3,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined, SmileOutlined } from '@ant-
 import { Button, Form, Input, Modal, Popconfirm, Popover, Space, Table, Typography } from 'antd';
 import EmojiPicker, { type EmojiClickData, Theme } from 'emoji-picker-react';
 import { useState } from 'react';
+import { JSONEditor, validateJSON } from '../JSONEditor';
 
 const { Text } = Typography;
 
@@ -37,6 +38,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
         icon: values.icon || '📋',
         description: values.description,
         sessions: [],
+        custom_context: values.custom_context ? JSON.parse(values.custom_context) : undefined,
       });
       form.resetFields();
       setCreateModalOpen(false);
@@ -49,6 +51,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
       name: board.name,
       icon: board.icon,
       description: board.description,
+      custom_context: board.custom_context ? JSON.stringify(board.custom_context, null, 2) : '',
     });
     setEditModalOpen(true);
   };
@@ -61,6 +64,7 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
         name: values.name,
         icon: values.icon,
         description: values.description,
+        custom_context: values.custom_context ? JSON.parse(values.custom_context) : undefined,
       });
       form.resetFields();
       setEditModalOpen(false);
@@ -198,6 +202,15 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
           <Form.Item label="Description" name="description">
             <Input.TextArea placeholder="Optional description..." rows={3} />
           </Form.Item>
+
+          <Form.Item
+            label="Custom Context (JSON)"
+            name="custom_context"
+            help="Add custom fields for use in zone trigger templates (e.g., {{ board.context.yourField }})"
+            rules={[{ validator: validateJSON }]}
+          >
+            <JSONEditor placeholder='{"team": "Backend", "sprint": 42}' rows={4} />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -258,6 +271,15 @@ export const BoardsTable: React.FC<BoardsTableProps> = ({
 
           <Form.Item label="Description" name="description">
             <Input.TextArea placeholder="Optional description..." rows={3} />
+          </Form.Item>
+
+          <Form.Item
+            label="Custom Context (JSON)"
+            name="custom_context"
+            help="Add custom fields for use in zone trigger templates (e.g., {{ board.context.yourField }})"
+            rules={[{ validator: validateJSON }]}
+          >
+            <JSONEditor placeholder='{"team": "Backend", "sprint": 42}' rows={4} />
           </Form.Item>
         </Form>
       </Modal>

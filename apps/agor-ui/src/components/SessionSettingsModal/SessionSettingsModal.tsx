@@ -2,6 +2,7 @@ import type { MCPServer } from '@agor/core/types';
 import { Divider, Form, Input, Modal } from 'antd';
 import React from 'react';
 import type { Session } from '../../types';
+import { JSONEditor, validateJSON } from '../JSONEditor';
 import { MCPServerSelect } from '../MCPServerSelect';
 import type { ModelConfig } from '../ModelSelector';
 import { ModelSelector } from '../ModelSelector';
@@ -49,6 +50,9 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
         permissionMode: session.permission_config?.mode || 'auto',
         issue_url: session.issue_url || '',
         pull_request_url: session.pull_request_url || '',
+        custom_context: session.custom_context
+          ? JSON.stringify(session.custom_context, null, 2)
+          : '',
       });
     }
   }, [
@@ -59,6 +63,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
     session.permission_config?.mode,
     session.issue_url,
     session.pull_request_url,
+    session.custom_context,
     form,
   ]);
 
@@ -94,6 +99,20 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
       }
       if (values.pull_request_url !== session.pull_request_url) {
         updates.pull_request_url = values.pull_request_url || undefined;
+      }
+
+      // Update custom context (parse JSON)
+      if (values.custom_context) {
+        try {
+          const parsedContext = JSON.parse(values.custom_context);
+          updates.custom_context = parsedContext;
+        } catch (error) {
+          console.error('Failed to parse custom context JSON:', error);
+          // Don't update if JSON is invalid
+        }
+      } else if (values.custom_context === '') {
+        // Empty string = remove custom context
+        updates.custom_context = undefined;
       }
 
       // Apply session updates if any
@@ -140,6 +159,9 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           permissionMode: session.permission_config?.mode || 'auto',
           issue_url: session.issue_url || '',
           pull_request_url: session.pull_request_url || '',
+          custom_context: session.custom_context
+            ? JSON.stringify(session.custom_context, null, 2)
+            : '',
         }}
       >
         <Form.Item
@@ -164,6 +186,15 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
           rules={[{ type: 'url', message: 'Please enter a valid URL' }]}
         >
           <Input placeholder="https://github.com/org/repo/pull/456" />
+        </Form.Item>
+
+        <Form.Item
+          label="Custom Context (JSON)"
+          name="custom_context"
+          help="Add custom fields for use in zone trigger templates (e.g., {{ session.context.yourField }})"
+          rules={[{ validator: validateJSON }]}
+        >
+          <JSONEditor placeholder='{"teamName": "Backend", "sprintNumber": 42}' rows={4} />
         </Form.Item>
 
         <Form.Item

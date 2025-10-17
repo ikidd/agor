@@ -1,4 +1,4 @@
-import type { Message, Session, Task, WorktreeConfig } from '@agor/core/types';
+import type { Message, PermissionMode, Session, Task, WorktreeConfig } from '@agor/core/types';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 /**
@@ -69,11 +69,23 @@ export const sessions = sqliteTable(
         // Permission config (session-level tool approvals)
         permission_config?: {
           allowedTools?: string[];
+          mode?: PermissionMode;
+        };
+
+        // Model config (session-level model selection)
+        model_config?: {
+          mode: 'alias' | 'exact';
+          model: string;
+          updated_at: string;
+          notes?: string;
         };
 
         // External references
         issue_url?: string;
         pull_request_url?: string;
+
+        // Custom context for Handlebars templates
+        custom_context?: Record<string, unknown>;
       }>()
       .notNull(),
   },
@@ -202,8 +214,9 @@ export const boards = sqliteTable(
         sessions: string[]; // Session IDs
         color?: string;
         icon?: string;
-        layout?: Record<string, { x: number; y: number }>; // Session positions
+        layout?: Record<string, { x: number; y: number; parentId?: string }>; // Session positions
         objects?: Record<string, import('@agor/core/types').BoardObject>; // Board objects (text, zone)
+        custom_context?: Record<string, unknown>; // Custom context for Handlebars templates
       }>()
       .notNull(),
   },

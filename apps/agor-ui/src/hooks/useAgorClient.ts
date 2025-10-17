@@ -56,17 +56,48 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
       clientRef.current = client;
 
       // Setup socket event listeners BEFORE connecting
-      client.io.on('connect', () => {
+      client.io.on('connect', async () => {
         if (mounted) {
-          setConnected(true);
-          setConnecting(false);
-          setError(null);
+          console.log('🔌 Connected to daemon');
+
+          // Re-authenticate on reconnection (e.g., after daemon restart)
+          try {
+            if (accessToken) {
+              await client.authenticate({
+                strategy: 'jwt',
+                accessToken,
+              });
+              console.log('✓ Re-authenticated with stored token after reconnect');
+            } else if (allowAnonymous) {
+              await client.authenticate({
+                strategy: 'anonymous',
+              });
+              console.log('✓ Re-authenticated anonymously after reconnect');
+            }
+
+            setConnected(true);
+            setConnecting(false);
+            setError(null);
+          } catch (err) {
+            console.error('❌ Re-authentication failed after reconnect:', err);
+            // Don't set error immediately - the token might just be expired
+            // Let useAuth handle token refresh logic instead
+            setConnecting(false);
+            setConnected(false);
+          }
         }
       });
 
-      client.io.on('disconnect', () => {
+      client.io.on('disconnect', reason => {
         if (mounted) {
+          console.log('🔌 Disconnected from daemon:', reason);
           setConnected(false);
+
+          // Auto-reconnect if disconnect was due to server restart (not intentional client disconnect)
+          if (reason === 'io server disconnect' || reason === 'transport close') {
+            console.log('🔄 Daemon restarted, attempting to reconnect...');
+            // Socket.io will auto-reconnect, we just need to re-authenticate when it does
+          }
         }
       });
 

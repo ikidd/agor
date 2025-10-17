@@ -31,8 +31,9 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
       sessions: string[];
       color?: string;
       icon?: string;
-      layout?: Record<string, { x: number; y: number }>;
+      layout?: Record<string, { x: number; y: number; parentId?: string }>;
       objects?: Record<string, BoardObject>;
+      custom_context?: Record<string, unknown>;
     };
 
     return {
@@ -70,6 +71,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
         icon: board.icon,
         layout: board.layout,
         objects: board.objects,
+        custom_context: board.custom_context,
       },
     };
   }

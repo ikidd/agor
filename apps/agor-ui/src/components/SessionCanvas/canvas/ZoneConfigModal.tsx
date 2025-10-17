@@ -147,6 +147,50 @@ export const ZoneConfigModal = ({
           placeholder="Enter the prompt or task description that will be triggered..."
           rows={6}
         />
+        <Alert
+          message="Handlebars Template Support"
+          description={
+            <div>
+              <p style={{ marginBottom: 8 }}>
+                Use Handlebars syntax to reference session and board data in your trigger:
+              </p>
+              <ul style={{ marginLeft: 16, marginBottom: 8 }}>
+                <li>
+                  <code>{'{{ session.issue_url }}'}</code> - GitHub issue URL
+                </li>
+                <li>
+                  <code>{'{{ session.pull_request_url }}'}</code> - Pull request URL
+                </li>
+                <li>
+                  <code>{'{{ session.description }}'}</code> - Session description
+                </li>
+                <li>
+                  <code>{'{{ session.context.* }}'}</code> - Custom context from session settings
+                </li>
+                <li>
+                  <code>{'{{ board.name }}'}</code> - Board name
+                </li>
+                <li>
+                  <code>{'{{ board.description }}'}</code> - Board description
+                </li>
+                <li>
+                  <code>{'{{ board.context.* }}'}</code> - Custom context from board settings
+                </li>
+              </ul>
+              <p style={{ marginTop: 8, marginBottom: 0 }}>
+                Example:{' '}
+                <code>
+                  {
+                    'Review {{ session.issue_url }} for {{ board.context.team }} sprint {{ board.context.sprint }}'
+                  }
+                </code>
+              </p>
+            </div>
+          }
+          type="info"
+          showIcon
+          style={{ marginTop: 12 }}
+        />
       </div>
     </Modal>
   );

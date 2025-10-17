@@ -190,15 +190,13 @@ const SessionCard = ({
               </Tag>
             )}
           </div>
-          {!isPinned && (
-            <Button
-              type="text"
-              size="small"
-              icon={<DragOutlined />}
-              className="drag-handle"
-              title="Drag to reposition"
-            />
-          )}
+          <Button
+            type="text"
+            size="small"
+            icon={<DragOutlined />}
+            className="drag-handle"
+            title="Drag to reposition"
+          />
           <div className="nodrag">
             {onSessionClick && (
               <Button

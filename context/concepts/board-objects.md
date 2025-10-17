@@ -1,17 +1,17 @@
-# Board Objects - Parent-Child Locking (Session Pinning)
+# Board Objects - Session Pinning & Zone Triggers
 
-**Status:** 🚧 Not Implemented
+**Status:** ✅ Implemented
 **Related:** [models.md](./models.md), [architecture.md](./architecture.md), [design.md](./design.md), [frontend-guidelines.md](./frontend-guidelines.md)
 
 ---
 
 ## Overview
 
-This document describes the **parent-child locking** feature for board objects, which allows sessions to be pinned to zones so they move together as a group.
+This document describes the **parent-child locking** feature for board objects, which allows sessions to be pinned to zones so they move together as a group. It also covers **zone triggers** with **Handlebars template support** for dynamic prompt generation.
 
-### What's Already Implemented ✅
+### What's Implemented ✅
 
-Board objects foundation is complete:
+**Board Objects Foundation:**
 
 - **Zone Rectangles** - Resizable colored regions (`ZoneNode` component in `apps/agor-ui/src/components/SessionCanvas/canvas/BoardObjectNodes.tsx`)
 - **Real-time Sync** - WebSocket broadcasting via daemon service hooks (`apps/agor-daemon/src/index.ts:310-344`)
@@ -19,9 +19,23 @@ Board objects foundation is complete:
 - **Drag-to-draw zones** - Tool in SessionCanvas with keyboard shortcuts (Z, E, Esc, Delete)
 - **Storage** - `board.objects` JSON dictionary in database, `board.layout` for session positions
 
-### What's Missing ❌
+**Parent-Child Locking:**
 
-**Parent-child locking** - Sessions cannot yet be pinned to zones. When you drag a zone, sessions inside it don't move with it.
+- **Drop-to-pin** - Sessions automatically pin to zones when dropped inside
+- **Pin indicator** - Pin icon replaces drag handle when session is pinned
+- **Unpin button** - Click pin icon to unpin from zone
+- **Coordinate conversion** - Automatic relative ↔ absolute position conversion
+- **Zone movement** - Pinned sessions move with their parent zone (React Flow native)
+- **Visual feedback** - Pinned sessions show zone color border
+
+**Zone Triggers with Handlebars:**
+
+- **Trigger types** - Prompt, Task, Subtask
+- **Handlebars templates** - Dynamic prompt generation from session data
+- **Session context** - Access `issue_url`, `pull_request_url`, `description`, and custom context
+- **Custom context** - User-defined JSON fields accessible via `{{ session.context.* }}`
+- **Trigger confirmation** - Modal prompts before executing trigger
+- **Template rendering** - Graceful fallback if template fails
 
 ---
 
@@ -401,37 +415,198 @@ import { PushpinFilled, DragOutlined } from '@ant-design/icons';
 
 ---
 
-## Future: Prompt Triggers (Kanban Automation)
+## Zone Triggers with Handlebars Templates
 
-**Note:** This is a SEPARATE feature, not part of parent-child locking.
+**Status:** ✅ Implemented
 
-**Goal:** Trigger actions when a session is dropped into a zone (e.g., change status, spawn subtask, send prompt).
+**Goal:** Trigger actions when a session is dropped into a zone, with dynamic prompt generation using Handlebars templates.
 
-**Use Cases:**
+### Trigger Types
 
-- Status zones (Backlog → In Progress → Review → Complete)
-- Automated prompts (drop into "Code Review" zone spawns review task)
-- Kanban workflows with automatic state management
+Three trigger types are supported (all use the unified `/sessions/:id/prompt` endpoint):
 
-**Implementation:** Extend `ZoneBoardObject` with `trigger` field:
+1. **Prompt** - Send a message to the session
+2. **Task** - Create a new task (same as prompt)
+3. **Subtask** - Create a subtask (prefixes prompt with `[Subtask]`)
+
+### Handlebars Template Support
+
+Zone trigger prompts support Handlebars syntax for dynamic content:
+
+**Available Context:**
 
 ```typescript
-interface ZoneBoardObject {
-  type: 'zone';
-  // ... existing fields ...
-
-  trigger?: {
-    action: 'prompt' | 'fork' | 'spawn' | 'status';
-    prompt?: string;
-    status?: 'idle' | 'running' | 'completed' | 'failed';
-    promptTemplate?: string;
-  };
+{
+  session: {
+    description: string; // Session title/description
+    issue_url: string; // GitHub issue URL
+    pull_request_url: string; // Pull request URL
+    context: Record<string, any>; // User-defined custom fields
+  }
 }
 ```
 
-**UI:** Add settings button in zone toolbar (already exists) that opens configuration modal (already exists as placeholder in `ZoneConfigModal.tsx`).
+**Example Templates:**
 
-**Effort:** ~3-4 hours (separate from pinning feature)
+```handlebars
+Review the code and comment on {{session.issue_url}}
+```
+
+```handlebars
+Create a subtask for {{session.description}} - Sprint {{session.context.sprintNumber}}
+```
+
+```handlebars
+Add tests for PR {{session.pull_request_url}} (Team: {{session.context.teamName}})
+```
+
+### Custom Context
+
+Users can define custom JSON context in Session Settings:
+
+**UI:** Session Settings Modal → Custom Context (JSON)
+
+**Example:**
+
+```json
+{
+  "teamName": "Backend",
+  "sprintNumber": 42,
+  "priority": "high"
+}
+```
+
+**Access in templates:**
+
+```handlebars
+{{session.context.teamName}}
+{{session.context.sprintNumber}}
+{{session.context.priority}}
+```
+
+### Implementation Details
+
+**Type System:**
+
+```typescript
+// packages/core/src/types/board.ts
+interface ZoneTrigger {
+  type: 'prompt' | 'task' | 'subtask';
+  text: string; // Handlebars template
+}
+
+interface ZoneBoardObject {
+  type: 'zone';
+  // ... other fields ...
+  trigger?: ZoneTrigger;
+}
+
+// packages/core/src/types/session.ts
+interface Session {
+  // ... other fields ...
+  issue_url?: string;
+  pull_request_url?: string;
+  custom_context?: Record<string, unknown>;
+}
+```
+
+**Template Rendering:**
+
+Location: `apps/agor-ui/src/components/SessionCanvas/SessionCanvas.tsx:1023-1084`
+
+```typescript
+import Handlebars from 'handlebars';
+
+// Build context from session data
+const context = {
+  session: {
+    description: session.description || '',
+    issue_url: session.issue_url || '',
+    pull_request_url: session.pull_request_url || '',
+    context: session.custom_context || {},
+  },
+};
+
+// Render template
+const template = Handlebars.compile(trigger.text);
+const renderedPrompt = template(context);
+```
+
+**Error Handling:**
+
+- Invalid templates fall back to raw text (no error shown to user)
+- Invalid JSON in custom context is rejected in Session Settings with validation error
+- Missing context fields render as empty strings (Handlebars default behavior)
+
+### UI Components
+
+**Zone Configuration:**
+
+- `ZoneConfigModal.tsx` - Configure zone triggers with Handlebars help text
+- Shows available variables with examples
+- Real-time validation for trigger text
+
+**Session Settings:**
+
+- `SessionSettingsModal.tsx` - Edit custom context JSON
+- JSON validation with error messages
+- Monospace font for better readability
+- Help text explains Handlebars template usage
+
+**Trigger Confirmation:**
+
+- Modal appears when session dropped into zone with trigger
+- Shows zone name, trigger type, and rendered prompt
+- User can execute or skip trigger
+- Session is pinned regardless of trigger execution choice
+
+---
+
+## Future Enhancements
+
+### Board-Level Custom Context
+
+**Idea:** Extend custom context to boards for board-wide metadata accessible in triggers.
+
+**Use Case:**
+
+```json
+// Board settings
+{
+  "team": "Backend Team",
+  "sprint": 42,
+  "deadline": "2025-03-15"
+}
+```
+
+**Template Access:**
+
+```handlebars
+{{board.context.team}}
+- Sprint
+{{board.context.sprint}}
+(Due:
+{{board.context.deadline}})
+{{session.description}}
+for
+{{session.context.feature}}
+```
+
+**Benefits:**
+
+- Shared context across all sessions on a board
+- Board-level metadata (team, sprint, project info)
+- Less repetition in session custom context
+- Hierarchical context: board → session → zone trigger
+
+**Implementation:**
+
+1. Add `custom_context?: Record<string, unknown>` to `Board` type
+2. Add Board Settings modal with custom context JSON field
+3. Extend Handlebars context to include `board: { context: board.custom_context }`
+4. Update ZoneConfigModal help text to show board context examples
+
+**Effort:** ~2-3 hours
 
 ---
 
@@ -439,8 +614,10 @@ interface ZoneBoardObject {
 
 - **React Flow Parent-Child Nodes:** https://reactflow.dev/examples/nodes/sub-flows
 - **React Flow Collision Detection:** https://reactflow.dev/examples/interaction/collision-detection
+- **Handlebars Documentation:** https://handlebarsjs.com/
 - **Current Implementation:**
   - Zone node: `apps/agor-ui/src/components/SessionCanvas/canvas/BoardObjectNodes.tsx`
   - Session canvas: `apps/agor-ui/src/components/SessionCanvas/SessionCanvas.tsx`
   - Board repository: `packages/core/src/db/repositories/boards.ts`
   - Daemon hooks: `apps/agor-daemon/src/index.ts:310-344`
+  - Zone trigger rendering: `apps/agor-ui/src/components/SessionCanvas/SessionCanvas.tsx:1023-1084`
