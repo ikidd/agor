@@ -2,372 +2,402 @@
 
 # Agor
 
-> **Next-gen agent orchestration — Multi-agent · Multiplayer · Real-time**
+**Agent orchestration for AI-assisted development.** The platform layer that sits above all agentic coding tools, providing one interface to manage Claude Code, Codex, and [coming soon] Gemini and more.
 
-**Status:** Phase 2 Complete - Multi-User Foundation
-
-[Installation](#getting-started) · [Documentation](CLAUDE.md) · [Roadmap](PROJECT.md) · [Architecture](context/)
+[Installation](#installation) · [Documentation](CLAUDE.md) · [Architecture](context/)
 
 ---
 
-## What is Agor?
+## What It Does
 
-**The control tower for AI-assisted development.** Manage unlimited agents (Claude Code, Cursor, Codex, Gemini) under one pane of glass—alone or with your team.
+**Agor manages sessions, tasks, and context as first-class composable primitives stored in a session tree.**
 
-Organize sessions on visual boards. Coordinate parallel workflows. Orchestrate complex tasks across multiple agents in real-time. Instead of juggling isolated chat windows, command your entire fleet of AI coding tools from a single tactical interface.
+Think of it as git's companion: **git tracks code, Agor tracks the conversations that produced the code.**
 
-### The Core Insight
+- Import sessions from Claude Code (Codex coming soon)
+- Visualize conversation history on a drag-and-drop canvas
+- Fork sessions to try alternative approaches
+- Spawn subtasks to delegate work to different agents
+- Track which sessions produced which code (git state per task)
+- Coordinate parallel agent work with isolated git worktrees
+- Real-time multiplayer collaboration with cursor broadcasting
 
-> **Context engineering isn't about prompt templates—it's about managing sessions, tasks, and concepts as first-class composable primitives stored in a session tree.**
-
-### Why Agor?
-
-- **Platform play** - Orchestrates all agents, doesn't compete with them
-- **Developer-centric** - Git-aware, visual tools, report-driven
-- **Source-available** - BSL with future open-source conversion
-
----
-
-**Current capabilities:**
-
-- 📊 **Visual session canvas** - Organize AI coding sessions on drag-and-drop boards with zones
-- 💬 **Full conversation history** - Import and browse Claude Code transcripts with task extraction
-- 👥 **Real-time collaboration** - Multi-user boards with facepile, cursor swarm, and presence indicators
-- 🔐 **User authentication** - Email/password login with JWT tokens (anonymous mode for local dev)
-- 🗄️ **Local-first storage** - SQLite database at `~/.agor/agor.db`
-- 🌐 **REST + WebSocket API** - FeathersJS daemon for programmatic access
-- 🖥️ **CLI + GUI** - Command-line tools and React-based UI
-- 🤖 **Claude Agent SDK** - Live session execution with streaming responses
-
----
-
-## Quick Look
-
-**Session Canvas:**
-
-Drag and drop sessions to organize your work. Click any session to view the full conversation history with task breakdown.
-
-**CLI:**
-
-```bash
-# Import a Claude Code session
-pnpm agor session load-claude <session-id>
-
-# List all sessions
-pnpm agor session list
-
-# Add to a board
-pnpm agor board add-session <board-id> <session-id>
 ```
-
-**UI:**
-
-Open http://localhost:5173 after starting the daemon to see your sessions on a visual canvas.
+Your Project:
+├── .git/          # Code repository (git)
+│   └── Version history
+│
+└── .agor/         # Session tree (agor)
+    ├── sessions/  # Conversation history
+    ├── tasks/     # Granular checkpoints
+    └── Metadata linking sessions ↔ code
+```
 
 ---
 
 ## The Five Primitives
 
-Everything in Agor is built from five fundamental primitives:
+Everything in Agor is built from five fundamental building blocks:
 
-1. **Session** - Everything is a session. Fork, spawn, navigate workflows as trees.
-2. **Task** - User prompts are tasks. Checkpoint work, track git state.
-3. **Report** - Post-task hooks generate structured learnings automatically.
-4. **Worktree** - Git worktrees for session isolation (optional but powerful).
-5. **Concept** - Modular context nuggets, compose into session-specific knowledge.
+### 1. Session - The Universal Container
 
-**Currently implemented:**
+**Everything is a session.** A session represents a conversation with an agentic coding tool.
 
-- ✅ Sessions (import from Claude Code, view conversations)
-- ✅ Tasks (extracted from user prompts, tracked in DB)
-- ✅ Boards (visual workspace for organizing sessions)
-- 🔄 Reports (coming in Phase 3)
-- 🔄 Concepts (coming in Phase 3)
+**Two relationship types:**
 
-See [context/concepts/core.md](context/concepts/core.md) for detailed explanations.
+- **Fork** - Try alternative approaches (divergent exploration, inherits full history)
+- **Spawn** - Delegate subtasks (new context window, focused work)
+
+```
+Session A: "Build auth system"
+├─ Fork B: "Try OAuth instead of JWT"
+└─ Spawn C: "Design user table schema"
+```
+
+### 2. Task - User Prompts as Checkpoints
+
+**Every user prompt creates a task.** Tasks are contiguous message ranges within a session, tracked with git state.
+
+```
+Task 1: "Implement auth"
+├─ Start: a4f2e91 (clean)
+├─ Agent makes changes → a4f2e91-dirty
+└─ Complete: b3e4d12
+```
+
+### 3. Worktree - Isolated Git Workspaces
+
+**Parallel sessions without conflicts.** Each session can get its own git worktree for complete isolation.
+
+```
+Main: ~/my-project (main branch)
+Session A → ~/my-project-auth (feature/auth)
+Session B → ~/my-project-graphql (feature/graphql)
+```
+
+### 4. Report - Structured Learning Capture
+
+**Post-task hooks generate reports.** After each task completes, Agor automatically extracts learnings using customizable templates (bug fixes, features, research findings).
+
+### 5. Concept - Modular Context
+
+**Self-referencing knowledge modules.** Wiki-style markdown files that compose into session-specific context. Load only what's needed, evolve with version control.
+
+```
+context/
+├── auth.md         # References [[security]], [[api-design]]
+├── security.md
+└── database.md
+```
 
 ---
 
-## Getting Started
+## What You Can Do Today
 
-### Prerequisites
-
-- Node.js 18+ and pnpm
-- Git
-- Claude Code 2.0+ (optional, for session import)
-
-### Installation
+**Import and visualize sessions:**
 
 ```bash
-# Clone repository
+pnpm agor session load-claude 34e94925-f4cc-4685-8869-83c77062ad14
+```
+
+- Parses Claude Code JSONL transcripts
+- Extracts tasks from user prompts
+- Indexes full conversation history in SQLite
+- Displays on visual canvas with drag-and-drop zones
+
+**Coordinate with your team:**
+
+- Real-time multiplayer with cursor broadcasting
+- Facepile showing active users
+- WebSocket sync for instant board updates
+- Pin sessions to zones for spatial organization
+
+**Execute agents directly:**
+
+- Claude Code integration via Agent SDK
+- Codex integration via OpenAI SDK (beta)
+- Token-level streaming responses
+- Per-session permission modes
+
+**Git worktree management:**
+
+```bash
+pnpm agor repo add https://github.com/user/repo
+pnpm agor repo worktree add repo-name feature-branch
+```
+
+- Each session gets isolated working directory
+- Parallel agent work without conflicts
+
+---
+
+## Installation
+
+**Requirements:**
+
+- Node.js 18+, pnpm, git
+- Claude Code 2.0+ (optional, for import)
+
+```bash
 git clone https://github.com/mistercrunch/agor
 cd agor
-
-# Install dependencies
 pnpm install
-
-# Initialize database and config
 pnpm agor init
-
-# Create first user (optional)
-pnpm agor user create
 ```
 
-### Running the Stack
-
-**Terminal 1 - Start daemon:**
+**Run the stack:**
 
 ```bash
-cd apps/agor-daemon
-pnpm dev  # http://localhost:3030
+# Terminal 1: Daemon (REST + WebSocket)
+cd apps/agor-daemon && pnpm dev  # :3030
+
+# Terminal 2: UI (React + Vite)
+cd apps/agor-ui && pnpm dev      # :5173
 ```
 
-**Terminal 2 - Start UI:**
-
-```bash
-cd apps/agor-ui
-pnpm dev  # http://localhost:5173
-```
-
-The daemon auto-rebuilds when you edit code in `packages/core` or `apps/agor-daemon`.
+The daemon auto-rebuilds and restarts when you edit `packages/core` or `apps/agor-daemon`.
 
 ---
 
-## Usage
+## Quick Start
 
-### CLI Commands
-
-**Sessions:**
+**Import a Claude Code session:**
 
 ```bash
-pnpm agor session list                      # List all sessions
-pnpm agor session show <id>                 # Show session details
-pnpm agor session load-claude <session-id>  # Import Claude Code session
-```
-
-**Boards:**
-
-```bash
-pnpm agor board list                        # List all boards
-pnpm agor board add-session <board> <sess>  # Add session to board
-```
-
-**Users:**
-
-```bash
-pnpm agor user create                       # Create new user
-pnpm agor user list                         # List all users
-```
-
-**Configuration:**
-
-```bash
-pnpm agor config                            # Show all config
-pnpm agor config get <key>                  # Get specific value
-pnpm agor config set <key> <value>          # Set value
-```
-
-**Repositories:**
-
-```bash
-pnpm agor repo add <url>                    # Clone git repository
-pnpm agor repo list                         # List repos
-pnpm agor repo worktree add <repo> <name>   # Create worktree
-```
-
-### Importing Claude Code Sessions
-
-Find your Claude Code session IDs:
-
-```bash
+# Find your session IDs
 ls -la ~/.claude/projects/
+
+# Import with automatic task extraction
+pnpm agor session load-claude 34e94925-f4cc-4685-8869-83c77062ad14 --board Default
 ```
 
-Import a session:
+**CLI reference:**
 
 ```bash
-pnpm agor session load-claude <session-id> --board <board-name>
-```
+# Sessions
+pnpm agor session list                      # Table view
+pnpm agor session show <id>                 # Full details
 
-Agor extracts tasks from user prompts and stores the full conversation history.
+# Boards
+pnpm agor board list                        # List boards
+pnpm agor board add-session <board> <sess>  # Organize sessions
+
+# Repos (git worktrees)
+pnpm agor repo add <url>                    # Clone repository
+pnpm agor repo worktree add <repo> <name>   # Create worktree
+
+# Users (multi-user mode)
+pnpm agor user create                       # Add user
+pnpm agor user list                         # Show all users
+
+# Config
+pnpm agor config                            # Show config
+pnpm agor config set <key> <value>          # Update config
+```
 
 ---
 
-## Architecture
+## How it works
 
-**Monorepo structure:**
+**Stack:**
 
-```
-agor/
-├── apps/
-│   ├── agor-daemon/    # FeathersJS backend (REST + WebSocket)
-│   ├── agor-cli/       # oclif CLI commands
-│   └── agor-ui/        # React + Ant Design + React Flow
-├── packages/
-│   └── core/           # Shared types, database, utilities
-└── context/            # Architecture documentation
-```
+- **Backend:** FeathersJS (REST + Socket.io), Drizzle ORM, LibSQL (SQLite)
+- **Frontend:** React 18, TypeScript, Ant Design, React Flow
+- **CLI:** oclif with chalk and cli-table3
+- **Real-time:** WebSocket broadcasting via Socket.io transport
 
-**Tech stack:**
+**Data model:**
 
-- **Backend:** FeathersJS, Drizzle ORM, LibSQL (SQLite)
-- **Frontend:** React, TypeScript, Ant Design, React Flow
-- **CLI:** oclif, cli-table3
-- **Database:** SQLite at `~/.agor/agor.db`
-- **Real-time:** Socket.io (WebSocket transport)
+- Sessions, Tasks, Messages, Boards, Repos, Users stored in SQLite
+- UUIDv7 for time-ordered IDs with short display format (first 8 chars)
+- Hybrid storage: materialized columns for queries + JSON blobs for nested data
+- B-tree indexes on frequently queried fields
 
-**Storage:**
+**File locations:**
 
 ```
 ~/.agor/
 ├── agor.db          # SQLite database
 ├── config.json      # Global config
 └── context.json     # CLI active context
+
+~/.claude/projects/  # Claude Code session transcripts (JSONL)
 ```
 
-See [context/concepts/architecture.md](context/concepts/architecture.md) for complete system design.
+**Monorepo:**
+
+```
+agor/
+├── apps/
+│   ├── agor-daemon/    # FeathersJS backend
+│   ├── agor-cli/       # oclif CLI
+│   └── agor-ui/        # React UI
+├── packages/
+│   └── core/           # Shared types, DB, git utils
+└── context/            # Architecture docs
+```
+
+See [CLAUDE.md](CLAUDE.md) for development guide and [context/](context/) for architecture deep-dives.
 
 ---
 
-## Current Status (Phase 2 Complete)
+## Example: How The Primitives Compose
 
-**What works now:**
+**Scenario: Building an authentication feature**
 
-✅ Session import from Claude Code transcripts
-✅ Task extraction from user prompts
-✅ Visual board canvas with drag-and-drop sessions and zones
-✅ Real-time multi-user sync via WebSocket
-✅ User authentication (email/password + JWT + anonymous mode)
-✅ CLI commands for sessions, boards, repos, users
-✅ Session conversation viewer with task breakdown
-✅ Git repository and worktree management
-✅ Multiplayer cursors and presence indicators (facepile, cursor swarm)
-✅ Claude Agent SDK integration with live execution
-✅ OpenAI Codex SDK integration (beta)
-✅ Board zones for organizing sessions visually
+**Phase 1 - Main session:**
 
-**What's coming in Phase 3:**
+```bash
+agor session start \
+  --agent claude-code \
+  --concepts auth,security,api-design \
+  --worktree feature-auth
+```
 
-🔄 MCP server UI integration and SDK hookup
+- Session A created with loaded context
+- Worktree `~/my-project-auth` created
+- Task 1: "Design JWT flow" → Completes, report generated
+- Task 2: "Implement endpoints" → Completes, report generated
+
+**Phase 2 - Fork to try alternative:**
+
+```bash
+agor session fork <session-a> --from-task 1
+```
+
+- Session B created (forked from design phase)
+- Inherits full history up to Task 1
+- Task 3: "Implement OAuth instead" → Different approach, same context
+
+**Phase 3 - Spawn subtask to different agent:**
+
+```bash
+agor session spawn <session-a> \
+  --agent gemini \
+  --concepts database,security
+```
+
+- Session C created (child of A)
+- New context window (no API design context)
+- Task 4: "Design user table" → Focused DB work
+
+**Result - Session tree:**
+
+```
+Session A (Claude Code, feature-auth worktree)
+│ Concepts: [auth, security, api-design]
+│
+├─ Task 1: "Design JWT auth" ✓
+├─ Task 2: "Implement JWT" ✓
+│
+├─ Session B (fork from Task 1)
+│   └─ Task 3: "Implement OAuth" ✓
+│
+└─ Session C (spawn from Task 2, Gemini)
+    └─ Task 4: "Design user table" ✓
+```
+
+---
+
+## Why The Session Tree Matters
+
+The session tree is Agor's fundamental artifact - a complete, versioned record of all agentic coding sessions.
+
+**Observable:**
+
+- Visualize entire tree of explorations
+- See which paths succeeded, which failed
+- Understand decision points and branches
+
+**Interactive:**
+
+- Manage multiple sessions in parallel
+- Fork any session at any task
+- Navigate between related sessions
+
+**Shareable:**
+
+- Push/pull like git (future: federated)
+- Learn from others' successful patterns
+
+**Versioned:**
+
+- Track evolution over time
+- Audit trail of AI-assisted development
+
+---
+
+## Implementation Status
+
+**Phase 2 Complete - Multi-User Foundation:**
+
+✅ Session import (Claude Code transcripts → SQLite)
+✅ Task extraction with message ranges
+✅ Visual canvas (React Flow with zones, pins, drag-and-drop)
+✅ Real-time multiplayer (cursor swarm, facepile, WebSocket sync)
+✅ Agent SDK integration (Claude Code + Codex with streaming)
+✅ Git worktree management
+✅ User authentication (JWT + anonymous mode)
+✅ Full CLI (oclif) and REST API (FeathersJS)
+
+**Phase 3 Next - Orchestration:**
+
 🔄 Session forking UI and genealogy visualization
-🔄 Concept and report management
-🔄 Enhanced Codex integration (full permission system)
+🔄 Automated report generation (post-task hooks)
+🔄 Concept management (modular context loading)
+🔄 MCP server integration (UI + SDK hookup)
 
 See [PROJECT.md](PROJECT.md) for detailed roadmap.
 
 ---
 
-## Development
-
-**Contributing:**
-
-Contributions are welcome!
-
-1. Read [context/concepts/core.md](context/concepts/core.md) for architecture
-2. Read [CLAUDE.md](CLAUDE.md) for development workflow
-3. Check [PROJECT.md](PROJECT.md) for current priorities
+## Contributing
 
 **Code standards:**
 
-- TypeScript strict mode with branded types
+- TypeScript strict mode with branded types (SessionID, TaskID, etc.)
 - Repository pattern for database access
 - Drizzle ORM for schema and queries
-- oclif conventions for CLI commands
-- Ant Design tokens for UI styling
+- oclif conventions for CLI
+- Ant Design token-based styling
 
-**Running tests:**
+**Before contributing:**
+
+1. Read [CLAUDE.md](CLAUDE.md) - Development workflow and patterns
+2. Check [context/concepts/architecture.md](context/concepts/architecture.md) - System design
+3. Review [PROJECT.md](PROJECT.md) - Current priorities
+
+**Testing:**
 
 ```bash
-cd packages/core && pnpm test
-cd apps/agor-ui && pnpm test
+cd packages/core && pnpm test       # Core unit tests
+cd apps/agor-ui && pnpm test        # UI tests
+cd apps/agor-ui && pnpm storybook   # Component dev
 ```
-
-**Storybook (component development):**
-
-```bash
-cd apps/agor-ui
-pnpm storybook  # http://localhost:6006
-```
-
----
-
-## Roadmap
-
-### Phase 3: Orchestration (Q1 2025)
-
-- MCP server integration and Agent SDK hookup
-- Session forking UI (try alternative approaches)
-- Genealogy visualization (parent/child/fork relationships)
-- Social collaboration (facepile, cursors, presence)
-
-### Phase 4: Distribution (Q2-Q4 2025)
-
-- npm package: `npm install -g agor`
-- Auto-start daemon lifecycle management
-- Desktop app (Tauri) with native installers
-
-### Phase 5: Cloud & Teams (2026)
-
-- PostgreSQL backend for cloud hosting
-- OAuth providers (GitHub, Google)
-- Organizations and RBAC
-- Multi-agent support (Cursor, Codex, Gemini)
-
-See [PROJECT.md](PROJECT.md) for complete roadmap.
 
 ---
 
 ## Documentation
 
-**Getting Started:**
-
-- [CLAUDE.md](CLAUDE.md) - Complete developer guide
-- [PROJECT.md](PROJECT.md) - Implementation roadmap
-
-**Architecture:**
-
-- [context/concepts/core.md](context/concepts/core.md) - Core primitives and vision
-- [context/concepts/models.md](context/concepts/models.md) - Data models
-- [context/concepts/architecture.md](context/concepts/architecture.md) - System design
-- [context/concepts/design.md](context/concepts/design.md) - UI/UX guidelines
-
-**Real-Time Collaboration:**
-
-- [context/concepts/multiplayer.md](context/concepts/multiplayer.md) - Multiplayer features
-- [context/concepts/auth.md](context/concepts/auth.md) - Authentication & authorization
-- [context/concepts/websockets.md](context/concepts/websockets.md) - WebSocket sync
-
-**Future Explorations:**
-
-- [context/explorations/single-package.md](context/explorations/single-package.md) - Distribution strategy
-- [context/explorations/mcp-integration.md](context/explorations/mcp-integration.md) - MCP server design
-- [context/explorations/subtask-orchestration.md](context/explorations/subtask-orchestration.md) - Multi-agent coordination
+- **[CLAUDE.md](CLAUDE.md)** - Developer guide, patterns, troubleshooting
+- **[PROJECT.md](PROJECT.md)** - Implementation roadmap and phase status
+- **[context/](context/)** - Architecture deep-dives and design decisions
 
 ---
 
 ## Troubleshooting
 
-**Port conflicts:**
-
 ```bash
+# Port conflicts
 lsof -ti:3030 | xargs kill -9  # Kill daemon
 lsof -ti:5173 | xargs kill -9  # Kill UI
+
+# Database reset
+pnpm agor init --force
+
+# Health check
+curl http://localhost:3030/health
 ```
-
-**Database issues:**
-
-```bash
-pnpm agor init --force  # Reinitialize database
-```
-
-**Daemon not responding:**
-
-```bash
-curl http://localhost:3030/health  # Check health
-cd apps/agor-daemon && pnpm dev    # Restart daemon
-```
-
----
 
 ---
 
@@ -376,7 +406,3 @@ cd apps/agor-daemon && pnpm dev    # Restart daemon
 **GitHub:** [mistercrunch/agor](https://github.com/mistercrunch/agor)
 **Issues:** [github.com/mistercrunch/agor/issues](https://github.com/mistercrunch/agor/issues)
 **Discussions:** [github.com/mistercrunch/agor/discussions](https://github.com/mistercrunch/agor/discussions)
-
----
-
-_Built by developers, for developers._

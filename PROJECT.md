@@ -37,17 +37,6 @@ See [context/concepts/multiplayer.md](context/concepts/multiplayer.md) and [cont
   - Different edge styles (solid spawn, dashed fork)
   - Click edge to see fork/spawn context
 
-**Presence indicators (1-2 weeks):**
-
-- [ ] **Session viewers** - Who's viewing which sessions
-  - `viewing:session` events
-  - Mini avatar badges on session cards
-  - Tooltip showing viewer names
-
-- [ ] **Typing indicators** - Who's prompting
-  - `typing:start` / `typing:stop` events
-  - "User is typing..." below prompt input
-
 **MCP Phase 3 (2-3 weeks):**
 
 - [ ] **SDK integration** - Pass MCP servers to agent
