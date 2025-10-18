@@ -14,6 +14,96 @@ Agor turns every AI session into a composable, inspectable, and reusable buildin
 
 ---
 
+---
+
+## 🖼️ GIFs and Screenshots
+
+> _Visual storytelling matters._  
+> These examples illustrate Agor’s core workflows and user experience.  
+> Replace the placeholders below with real GIFs or screenshots once captured.
+
+---
+
+### 🎯 **1. Board View Overview**
+
+**Purpose:** Show Agor’s multiplayer spatial canvas.
+
+**Suggested clip:**
+
+- Start zoomed out on a complex board.
+- Display multiple colored **zones** labeled (e.g., Analyze / Develop / Review / Deploy).
+- Animate **3–4 cursors** moving simultaneously — teammates or agents “swarming” the board.
+- Demonstrate **zooming in/out**, **panning**, and **zone creation**.
+- Optional overlay: “Real-time multiplayer. Context-aware. Spatial orchestration.”
+
+**Placeholder:**  
+![Board View Overview](docs/media/board-overview.gif)
+
+---
+
+### 💬 **2. Conversation Overview**
+
+**Purpose:** Highlight the session interaction UX.
+
+**Suggested clip:**
+
+- Scroll through a conversation thread between user and agent.
+- Expand/collapse message groups, show tool output diffs and permission prompts.
+- Hover to reveal **tooltips**, **copy-to-clipboard** buttons, and visual **write diffs**.
+- End with an elegant “task complete” transition.
+
+**Placeholder:**  
+![Conversation Overview](docs/media/conversation-overview.gif)
+
+---
+
+### ⚡ **3. Session Creation Overview**
+
+**Purpose:** Demonstrate how users start and configure new sessions.
+
+**Suggested clip:**
+
+- Open “New Session” modal.
+- Select an **agentic tool** (Claude Code, Codex, Gemini).
+- Assign an **MCP server** from a dropdown.
+- Configure **permissions**, **context modules**, and **git worktree**.
+- Click “Create Session” → see it appear on the board instantly.
+
+**Placeholder:**  
+![Session Creation Overview](docs/media/session-creation.gif)
+
+---
+
+### 🛠️ **4. Admin / Settings Overview**
+
+**Purpose:** Show the system configuration interface.
+
+**Suggested clip:**
+
+- Navigate through tabs for **Tools**, **Git Worktrees**, **Users**, and **MCP Settings**.
+- Animate toggling settings, editing configuration fields, and saving changes.
+- Optionally display how global settings propagate instantly to connected clients.
+
+**Placeholder:**  
+![Admin Settings Overview](docs/media/settings-overview.gif)
+
+---
+
+### 🧩 **5. Optional Extras**
+
+Additional visuals to consider:
+
+- **Report generation flow** – showing agent summarization after task completion.
+- **Zone trigger in action** – dropping a session onto a zone to auto-launch a workflow.
+- **Git worktree visualization** – mini-map linking sessions to repo branches.
+
+**Placeholder:**  
+![Extras](docs/media/extras.gif)
+
+---
+
+---
+
 ## 🚀 What Makes Agor Different
 
 ### 🧩 **Agent Orchestration Layer**
