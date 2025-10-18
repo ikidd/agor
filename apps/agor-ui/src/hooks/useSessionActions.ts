@@ -5,7 +5,7 @@
  */
 
 import type { AgorClient } from '@agor/core/api';
-import type { AgentName, Session, SessionID } from '@agor/core/types';
+import type { AgentName, Repo, Session, SessionID } from '@agor/core/types';
 import { getDefaultPermissionMode } from '@agor/core/types';
 import { useState } from 'react';
 import type { NewSessionConfig } from '../components/NewSessionModal';
@@ -50,13 +50,53 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
         repoSlug = parts[0];
         worktreeName = parts[1];
       } else if (config.repoSetupMode === 'new-worktree') {
+        // Create new worktree on existing repo
         repoSlug = config.existingRepoSlug;
         worktreeName = config.newWorktreeName;
-        // TODO: Create the worktree via daemon before creating session
+
+        if (!repoSlug || !worktreeName) {
+          throw new Error('Repository and worktree name required for new worktree mode');
+        }
+
+        // Find the repo ID from the slug
+        const repos = await client.service('repos').find({});
+        const repo = repos.find((r: Repo) => r.slug === repoSlug);
+        if (!repo) {
+          throw new Error(`Repository not found: ${repoSlug}`);
+        }
+
+        // Determine branch name (use worktree name if checkbox is checked, otherwise use custom branch name)
+        const branchName = config.newWorktreeBranch || worktreeName;
+
+        console.log(
+          `Creating worktree: ${worktreeName} on branch: ${branchName} for repo: ${repoSlug} (${repo.repo_id})`
+        );
+
+        // Create the worktree via daemon
+        await client.service(`repos/${repo.repo_id}/worktrees`).create({
+          name: worktreeName,
+          ref: branchName,
+          createBranch: true, // Always create a new branch for new worktrees
+        });
+
+        console.log(`Worktree created successfully: ${worktreeName}`);
       } else if (config.repoSetupMode === 'new-repo') {
         repoSlug = config.repoSlug;
         worktreeName = config.initialWorktreeName;
         // TODO: Clone repo and create worktree via daemon before creating session
+      }
+
+      // Determine the git ref (branch name) based on setup mode
+      let gitRef = 'main'; // Default fallback
+      if (config.repoSetupMode === 'new-worktree') {
+        // Use the branch name specified for the new worktree (or worktree name if checkbox was checked)
+        gitRef = config.newWorktreeBranch || config.newWorktreeName || 'main';
+      } else if (config.repoSetupMode === 'new-repo') {
+        gitRef = config.initialWorktreeBranch || 'main';
+      } else if (config.repoSetupMode === 'existing-worktree') {
+        // For existing worktrees, the ref should already be set by the daemon
+        // We'll use 'main' as default, but the daemon will override this with actual ref
+        gitRef = 'main';
       }
 
       // Create session with repo/worktree data
@@ -71,7 +111,7 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
           managed_worktree: !!worktreeName, // If we have a worktree name, it's managed
         },
         git_state: {
-          ref: config.newWorktreeBranch || config.initialWorktreeBranch || 'main',
+          ref: gitRef,
           base_sha: 'HEAD',
           current_sha: 'HEAD',
         },
