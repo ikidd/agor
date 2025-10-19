@@ -20,19 +20,35 @@ import {
 } from '@agor/core/db';
 import { type PermissionDecision, PermissionService } from '@agor/core/permissions';
 import { ClaudeTool, CodexTool, GeminiTool } from '@agor/core/tools';
-import type { SessionID, User } from '@agor/core/types';
+import type { Message, SessionID, Task, User } from '@agor/core/types';
 import { TaskStatus } from '@agor/core/types';
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import { AuthenticationService, JWTStrategy } from '@feathersjs/authentication';
 import { LocalStrategy } from '@feathersjs/authentication-local';
 import feathersExpress, { errorHandler, rest } from '@feathersjs/express';
-import type { Params } from '@feathersjs/feathers';
+import type { Paginated, Params } from '@feathersjs/feathers';
 import { feathers } from '@feathersjs/feathers';
+
+/**
+ * Type guard to check if result is paginated
+ */
+function isPaginated<T>(result: T[] | Paginated<T>): result is Paginated<T> {
+  return !Array.isArray(result) && 'data' in result && 'total' in result;
+}
+
 import socketio from '@feathersjs/socketio';
 import cors from 'cors';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import type { Socket } from 'socket.io';
+import type {
+  BoardsServiceImpl,
+  CreateHookContext,
+  MessagesServiceImpl,
+  ReposServiceImpl,
+  SessionsServiceImpl,
+  TasksServiceImpl,
+} from './declarations';
 import { createBoardsService } from './services/boards';
 import { createContextService } from './services/context';
 import { createMCPServersService } from './services/mcp-servers';
@@ -230,7 +246,7 @@ async function main() {
   // Register core services
   app.use('/sessions', createSessionsService(db));
   app.use('/tasks', createTasksService(db));
-  const messagesService = createMessagesService(db);
+  const messagesService = createMessagesService(db) as unknown as MessagesServiceImpl;
 
   // Register messages service with custom streaming events
   app.use('/messages', messagesService, {
@@ -275,10 +291,9 @@ async function main() {
   app.service('sessions').hooks({
     before: {
       create: [
-        async context => {
+        (async (context: CreateHookContext) => {
           // Inject user_id if authenticated, otherwise use 'anonymous'
-          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
-          const user = (context.params as any).user;
+          const user = context.params.user;
           const userId = user?.user_id || 'anonymous';
 
           // DEBUG: Log authentication state
@@ -290,16 +305,15 @@ async function main() {
           );
 
           if (Array.isArray(context.data)) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            context.data.forEach((item: any) => {
+            context.data.forEach(item => {
               if (!item.created_by) item.created_by = userId;
             });
           } else if (context.data && !context.data.created_by) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            (context.data as any).created_by = userId;
+            context.data.created_by = userId;
           }
           return context;
-        },
+          // biome-ignore lint/suspicious/noExplicitAny: FeathersJS hook type mismatch requires assertion
+        }) as any,
       ],
     },
   });
@@ -307,10 +321,9 @@ async function main() {
   app.service('tasks').hooks({
     before: {
       create: [
-        async context => {
+        (async (context: CreateHookContext) => {
           // Inject user_id if authenticated, otherwise use 'anonymous'
-          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
-          const user = (context.params as any).user;
+          const user = context.params.user;
           const userId = user?.user_id || 'anonymous';
 
           // DEBUG: Log authentication state
@@ -322,16 +335,15 @@ async function main() {
           );
 
           if (Array.isArray(context.data)) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            context.data.forEach((item: any) => {
+            context.data.forEach(item => {
               if (!item.created_by) item.created_by = userId;
             });
           } else if (context.data && !context.data.created_by) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            (context.data as any).created_by = userId;
+            context.data.created_by = userId;
           }
           return context;
-        },
+          // biome-ignore lint/suspicious/noExplicitAny: FeathersJS hook type mismatch requires assertion
+        }) as any,
       ],
     },
   });
@@ -339,22 +351,20 @@ async function main() {
   app.service('boards').hooks({
     before: {
       create: [
-        async context => {
+        (async (context: CreateHookContext) => {
           // Inject user_id if authenticated, otherwise use 'anonymous'
-          // biome-ignore lint/suspicious/noExplicitAny: Context params extended with user field
-          const userId = (context.params as any).user?.user_id || 'anonymous';
+          const userId = context.params.user?.user_id || 'anonymous';
 
           if (Array.isArray(context.data)) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            context.data.forEach((item: any) => {
+            context.data.forEach(item => {
               if (!item.created_by) item.created_by = userId;
             });
           } else if (context.data && !context.data.created_by) {
-            // biome-ignore lint/suspicious/noExplicitAny: Hook data type
-            (context.data as any).created_by = userId;
+            context.data.created_by = userId;
           }
           return context;
-        },
+          // biome-ignore lint/suspicious/noExplicitAny: FeathersJS hook type mismatch requires assertion
+        }) as any,
       ],
       patch: [
         async context => {
@@ -372,7 +382,12 @@ async function main() {
               // Return early to prevent normal patch flow
               throw new Error('upsertObject requires objectId and objectData');
             }
-            const result = await boardsService.upsertBoardObject(context.id, objectId, objectData);
+            if (!context.id) throw new Error('Board ID required');
+            const result = await boardsService.upsertBoardObject(
+              context.id as string,
+              objectId as string,
+              objectData
+            );
             context.result = result;
             // Manually emit 'patched' event for WebSocket broadcasting (ONCE)
             app.service('boards').emit('patched', result);
@@ -382,7 +397,11 @@ async function main() {
           }
 
           if (_action === 'removeObject' && objectId) {
-            const result = await boardsService.removeBoardObject(context.id, objectId);
+            if (!context.id) throw new Error('Board ID required');
+            const result = await boardsService.removeBoardObject(
+              context.id as string,
+              objectId as string
+            );
             context.result = result;
             // Manually emit 'patched' event for WebSocket broadcasting (ONCE)
             app.service('boards').emit('patched', result);
@@ -392,7 +411,11 @@ async function main() {
           }
 
           if (_action === 'batchUpsertObjects' && objects) {
-            const result = await boardsService.batchUpsertBoardObjects(context.id, objects);
+            if (!context.id) throw new Error('Board ID required');
+            const result = await boardsService.batchUpsertBoardObjects(
+              context.id as string,
+              objects
+            );
             context.result = result;
             // Manually emit 'patched' event for WebSocket broadcasting (ONCE)
             app.service('boards').emit('patched', result);
@@ -402,9 +425,10 @@ async function main() {
           }
 
           if (_action === 'deleteZone' && objectId) {
+            if (!context.id) throw new Error('Board ID required');
             const result = await boardsService.deleteZone(
-              context.id,
-              objectId,
+              context.id as string,
+              objectId as string,
               deleteAssociatedSessions ?? false
             );
             context.result = result.board;
@@ -611,15 +635,14 @@ async function main() {
 
   // Configure custom route for bulk message creation
   app.use('/messages/bulk', {
-    async create(data: unknown[]) {
-      // biome-ignore lint/suspicious/noExplicitAny: Messages data validated by repository
-      return messagesService.createMany(data as any);
+    async create(data: unknown) {
+      // Type assertion safe: repository validates message structure
+      return messagesService.createMany(data as Message[]);
     },
   });
 
   // Configure custom methods for sessions service
-  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
-  const sessionsService = app.service('sessions') as any;
+  const sessionsService = app.service('sessions') as unknown as SessionsServiceImpl;
   app.use('/sessions/:id/fork', {
     async create(data: { prompt: string; task_id?: string }, params: RouteParams) {
       const id = params.route?.id;
@@ -638,13 +661,12 @@ async function main() {
 
   // Feathers custom route handler with find method
   app.use('/sessions/:id/genealogy', {
-    // biome-ignore lint/suspicious/noExplicitAny: Route handler parameter type
-    async find(_data: any, params: RouteParams) {
+    async find(_data: unknown, params: RouteParams) {
       const id = params.route?.id;
       if (!id) throw new Error('Session ID required');
       return sessionsService.getGenealogy(id, params);
     },
-    // biome-ignore lint/suspicious/noExplicitAny: Service type not compatible with Express
+    // biome-ignore lint/suspicious/noExplicitAny: FeathersJS route handler type mismatch with Express RouteParams
   } as any);
 
   app.use('/sessions/:id/prompt', {
@@ -662,7 +684,7 @@ async function main() {
 
       // Get session to find current message count
       const session = await sessionsService.get(id, params);
-      console.log(`   Session agent: ${session.agent}`);
+      console.log(`   Session agent: ${session.agentic_tool}`);
       console.log(
         `   Session permission_config.mode: ${session.permission_config?.mode || 'not set'}`
       );
@@ -676,7 +698,7 @@ async function main() {
       // PHASE 1: Create task immediately with 'running' status (UI shows task instantly)
       const task = await tasksService.create(
         {
-          session_id: id,
+          session_id: id as SessionID,
           status: TaskStatus.RUNNING, // Start as running, will be updated to completed
           description: data.prompt.substring(0, 120),
           full_prompt: data.prompt,
@@ -866,14 +888,14 @@ async function main() {
             // Check if error is due to stale Agent SDK session
             if (
               error.message?.includes('Claude Code process exited with code 1') &&
-              session.agent_session_id
+              session.sdk_session_id
             ) {
-              console.warn(`⚠️  Detected stale Agent SDK session ${session.agent_session_id}`);
-              console.warn(`   Clearing agent_session_id to allow fresh session on retry`);
+              console.warn(`⚠️  Detected stale Agent SDK session ${session.sdk_session_id}`);
+              console.warn(`   Clearing sdk_session_id to allow fresh session on retry`);
 
-              // Clear the stale agent_session_id so next prompt starts fresh
+              // Clear the stale sdk_session_id so next prompt starts fresh
               await sessionsService.patch(id, {
-                agent_session_id: null,
+                sdk_session_id: undefined,
               });
             }
 
@@ -927,9 +949,10 @@ async function main() {
       });
 
       // Extract data array if paginated
-      const runningTasksArray = Array.isArray(runningTasks)
-        ? runningTasks
-        : runningTasks.data || [];
+      // Note: FeathersJS Service.find() can return T | T[] | Paginated<Task> depending on query params
+      // We cast to the expected union type since we know we're querying for multiple results
+      const findResult = runningTasks as Task[] | Paginated<Task>;
+      const runningTasksArray = isPaginated(findResult) ? findResult.data : findResult;
 
       // PHASE 1: Immediately update status to 'stopping' (UI feedback before SDK call)
       if (runningTasksArray.length > 0) {
@@ -1024,13 +1047,12 @@ async function main() {
   });
 
   // Configure custom methods for tasks service
-  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
-  const tasksService = app.service('tasks') as any;
+  const tasksService = app.service('tasks') as unknown as TasksServiceImpl;
 
   // Configure custom route for bulk task creation
   app.use('/tasks/bulk', {
-    async create(data: unknown[]) {
-      return tasksService.createMany(data);
+    async create(data: unknown) {
+      return tasksService.createMany(data as Partial<Task>[]);
     },
   });
 
@@ -1054,8 +1076,7 @@ async function main() {
   });
 
   // Configure custom methods for repos service
-  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
-  const reposService = app.service('repos') as any;
+  const reposService = app.service('repos') as unknown as ReposServiceImpl;
   app.use('/repos/clone', {
     async create(data: { url: string; name?: string; destination?: string }, params: RouteParams) {
       return reposService.cloneRepository(data, params);
@@ -1081,8 +1102,7 @@ async function main() {
   });
 
   // Configure custom methods for boards service
-  // biome-ignore lint/suspicious/noExplicitAny: Service type is correct but TS doesn't infer custom methods
-  const boardsService = app.service('boards') as any;
+  const boardsService = app.service('boards') as unknown as BoardsServiceImpl;
   app.use('/boards/:id/sessions', {
     async create(data: { sessionId: string }, params: RouteParams) {
       const id = params.route?.id;
@@ -1183,7 +1203,11 @@ async function main() {
     try {
       // Find all boards
       const boardsResult = await boardsService.find();
-      const boards = Array.isArray(boardsResult) ? boardsResult : boardsResult.data;
+      // Note: FeathersJS Service.find() can return T | T[] | Paginated<Board> depending on query params
+      // We cast to the expected union type since we know we're querying for multiple results
+      type Board = import('@agor/core/types').Board;
+      const findResult = boardsResult as Board[] | Paginated<Board>;
+      const boards = isPaginated(findResult) ? findResult.data : findResult;
 
       // Remove session from any boards that contain it
       for (const board of boards) {
