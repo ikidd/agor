@@ -77,6 +77,20 @@ export const ManyTasksSession: Story = {
   },
 };
 
+export const TitleOnly: Story = {
+  args: {
+    session: { ...mockSessionA, description: undefined },
+    tasks: mockTasksBySession.abc123,
+  },
+};
+
+export const LegacyDescriptionOnly: Story = {
+  args: {
+    session: { ...mockSessionA, title: undefined },
+    tasks: mockTasksBySession.abc123,
+  },
+};
+
 // Fully integrated example with SessionDrawer
 export const WithDrawer = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -97,7 +111,7 @@ export const WithDrawer = () => {
         session={mockSessionA}
         tasks={mockTasksBySession.abc123}
         onDrawerOpen={() => setDrawerOpen(true)}
-        onTaskClick={(taskId) => alert(`Task clicked: ${taskId}`)}
+        onTaskClick={taskId => alert(`Task clicked: ${taskId}`)}
       />
 
       <SessionDrawer

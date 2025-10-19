@@ -48,7 +48,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
       const defaultPermissionMode = session.agentic_tool === 'codex' ? 'auto' : 'acceptEdits';
 
       form.setFieldsValue({
-        title: session.description || '',
+        title: session.title || '',
         mcpServerIds: sessionMcpServerIds,
         modelConfig: session.model_config,
         permissionMode: session.permission_config?.mode || defaultPermissionMode,
@@ -61,7 +61,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
     }
   }, [
     open,
-    session.description,
+    session.title,
     session.agentic_tool,
     sessionMcpServerIds,
     session.model_config,
@@ -77,9 +77,9 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
       // Collect all updates
       const updates: Partial<Session> = {};
 
-      // Update session title/description
-      if (values.title !== session.description) {
-        updates.description = values.title;
+      // Update session title
+      if (values.title !== session.title) {
+        updates.title = values.title;
       }
 
       // Update model config
@@ -158,7 +158,7 @@ export const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({
         form={form}
         layout="vertical"
         initialValues={{
-          title: session.description || '',
+          title: session.title || '',
           mcpServerIds: sessionMcpServerIds,
           modelConfig: session.model_config,
           permissionMode:

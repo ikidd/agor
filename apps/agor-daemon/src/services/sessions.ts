@@ -61,6 +61,7 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
       {
         agentic_tool: parent.agentic_tool,
         status: 'idle',
+        title: data.prompt.substring(0, 100), // First 100 chars as title
         description: data.prompt,
         repo: parent.repo,
         git_state: { ...parent.git_state },
@@ -112,6 +113,7 @@ export class SessionsService extends DrizzleService<Session, Partial<Session>, S
       {
         agentic_tool: data.agentic_tool || parent.agentic_tool,
         status: 'idle',
+        title: data.prompt.substring(0, 100), // First 100 chars as title
         description: data.prompt,
         repo: parent.repo,
         git_state: { ...parent.git_state },

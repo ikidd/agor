@@ -6,7 +6,8 @@ export const mockSessionA: Session = {
   agent: 'claude-code',
   agent_version: '1.2.3',
   status: 'running',
-  description: 'Build authentication system',
+  title: 'Build authentication system',
+  description: 'Initial attempt at implementing JWT-based auth with refresh tokens',
   created_at: '2025-10-01T10:00:00Z',
   last_updated: '2025-10-01T10:30:00Z',
   repo: {
@@ -33,7 +34,8 @@ export const mockSessionB: Session = {
   agent: 'claude-code',
   agent_version: '1.2.3',
   status: 'idle',
-  description: 'Try OAuth 2.0 instead',
+  title: 'Try OAuth 2.0 instead',
+  description: 'Forked from abc123 to explore OAuth 2.0 flow as alternative approach',
   created_at: '2025-10-01T10:20:00Z',
   last_updated: '2025-10-01T10:35:00Z',
   repo: {
@@ -62,7 +64,8 @@ export const mockSessionC: Session = {
   agent: 'gemini',
   agent_version: '2.0',
   status: 'completed',
-  description: 'Design user database schema',
+  title: 'Design user database schema',
+  description: 'Spawned from abc123 to design database schema with Gemini',
   created_at: '2025-10-01T10:18:00Z',
   last_updated: '2025-10-01T10:28:00Z',
   repo: {

@@ -56,6 +56,12 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
       client = createClient(url, false);
       clientRef.current = client;
 
+      // Store client globally for Vite HMR cleanup
+      if (typeof window !== 'undefined') {
+        // biome-ignore lint/suspicious/noExplicitAny: Global window extension for HMR cleanup
+        (window as any).__agorClient = client;
+      }
+
       // Setup socket event listeners BEFORE connecting
       client.io.on('connect', async () => {
         if (mounted) {
@@ -186,10 +192,18 @@ export function useAgorClient(options: UseAgorClientOptions = {}): UseAgorClient
     return () => {
       mounted = false;
       if (client?.io) {
+        console.log('🔌 useAgorClient: Cleaning up socket connection...');
         // Remove all listeners to prevent memory leaks
         client.io.removeAllListeners();
-        // Disconnect gracefully
-        client.io.disconnect();
+        // Disconnect gracefully (close is more forceful than disconnect)
+        client.io.close();
+        console.log('✅ useAgorClient: Socket closed');
+      }
+      // Clear global reference
+      // biome-ignore lint/suspicious/noExplicitAny: Global window extension for HMR cleanup
+      if (typeof window !== 'undefined' && (window as any).__agorClient === client) {
+        // biome-ignore lint/suspicious/noExplicitAny: Global window extension for HMR cleanup
+        delete (window as any).__agorClient;
       }
     };
   }, [url, accessToken, allowAnonymous]);

@@ -67,15 +67,17 @@ export function createClient(
   const socket = io(url, {
     // Auto-connect by default for CLI, manual control for React hooks
     autoConnect,
-    // Reconnection settings
+    // Reconnection settings (less aggressive to prevent socket exhaustion)
     reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5,
+    reconnectionDelay: 2000, // Wait 2s before first reconnect attempt
+    reconnectionDelayMax: 10000, // Max 10s between attempts
+    reconnectionAttempts: 10, // Try 10 times before giving up
     // Timeout settings
     timeout: 10000,
     // Transports (WebSocket preferred, fallback to polling)
     transports: ['websocket', 'polling'],
+    // Connection lifecycle settings
+    closeOnBeforeunload: true, // Close socket when page unloads
   });
 
   const client = feathers<ServiceTypes>() as AgorClient;

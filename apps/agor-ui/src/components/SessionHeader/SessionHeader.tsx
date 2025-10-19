@@ -108,9 +108,12 @@ const SessionHeader = ({ session, onClick, showCounts = true }: SessionHeaderPro
         </Space>
       </div>
 
-      {session.description && (
-        <Text style={{ fontSize: 14, fontWeight: 500 }} ellipsis={{ tooltip: session.description }}>
-          {session.description}
+      {(session.title || session.description) && (
+        <Text
+          style={{ fontSize: 14, fontWeight: 500 }}
+          ellipsis={{ tooltip: session.title || session.description }}
+        >
+          {session.title || session.description}
         </Text>
       )}
 

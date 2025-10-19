@@ -241,10 +241,10 @@ const SessionCard = ({
 
       {/* Session metadata */}
       <div className="nodrag">
-        {/* Description */}
-        {session.description && (
+        {/* Title/Description */}
+        {(session.title || session.description) && (
           <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
-            {session.description}
+            {session.title || session.description}
           </Text>
         )}
 

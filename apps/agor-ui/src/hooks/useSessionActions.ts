@@ -105,7 +105,8 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
       const newSession = await client.service('sessions').create({
         agentic_tool: agenticTool,
         status: 'idle' as const,
-        description: config.initialPrompt || config.title || undefined,
+        title: config.title || undefined,
+        description: config.initialPrompt || undefined,
         repo: {
           repo_slug: repoSlug,
           worktree_name: worktreeName,

@@ -45,8 +45,14 @@ export abstract class BaseCommand extends Command {
    */
   protected async cleanupClient(client: AgorClient): Promise<void> {
     await new Promise<void>(resolve => {
-      client.io.on('disconnect', resolve);
+      // Use 'once' to prevent memory leak from accumulating listeners
+      client.io.once('disconnect', resolve);
+      // Remove all other listeners before closing
+      client.io.removeAllListeners('connect');
+      client.io.removeAllListeners('connect_error');
+      // Close the socket
       client.io.close();
+      // Fallback timeout in case disconnect doesn't fire
       setTimeout(resolve, 1000);
     });
   }

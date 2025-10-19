@@ -124,14 +124,25 @@ async function main() {
           methods: ['GET', 'POST', 'PATCH', 'DELETE'],
           credentials: true,
         },
+        // Socket.io server options for better connection management
+        pingTimeout: 60000, // How long to wait for pong before considering connection dead
+        pingInterval: 25000, // How often to ping clients
+        maxHttpBufferSize: 1e6, // 1MB max message size
+        transports: ['websocket', 'polling'], // Prefer WebSocket
       },
       io => {
         // Store Socket.io server instance for shutdown
         socketServer = io;
 
+        // Track active connections for debugging
+        let activeConnections = 0;
+
         // Configure Socket.io for cursor presence events
         io.on('connection', socket => {
-          console.log('🔌 Socket.io connection established:', socket.id);
+          activeConnections++;
+          console.log(
+            `🔌 Socket.io connection established: ${socket.id} (total: ${activeConnections})`
+          );
 
           // Helper to get user ID from socket's Feathers connection
           const getUserId = () => {
@@ -166,7 +177,27 @@ async function main() {
               timestamp: Date.now(),
             });
           });
+
+          // Track disconnections
+          socket.on('disconnect', reason => {
+            activeConnections--;
+            console.log(
+              `🔌 Socket.io disconnected: ${socket.id} (reason: ${reason}, remaining: ${activeConnections})`
+            );
+          });
+
+          // Handle socket errors
+          socket.on('error', error => {
+            console.error(`❌ Socket.io error on ${socket.id}:`, error);
+          });
         });
+
+        // Log connection metrics periodically (every 30 seconds)
+        setInterval(() => {
+          if (activeConnections > 0) {
+            console.log(`📊 Active WebSocket connections: ${activeConnections}`);
+          }
+        }, 30000);
       }
     )
   );

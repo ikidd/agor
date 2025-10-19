@@ -115,6 +115,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
       data: {
         agentic_tool_version: session.agentic_tool_version,
         sdk_session_id: session.sdk_session_id, // Preserve SDK session ID for conversation continuity
+        title: session.title,
         description: session.description,
         repo,
         git_state: session.git_state ?? {

@@ -39,6 +39,7 @@ export const SessionListDrawer: React.FC<SessionListDrawerProps> = ({
   // Filter sessions by search query
   const filteredSessions = boardSessions.filter(
     session =>
+      session.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.agentic_tool.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -135,7 +136,9 @@ export const SessionListDrawer: React.FC<SessionListDrawerProps> = ({
                 avatar={<span style={{ fontSize: 24 }}>{getAgentIcon(session.agentic_tool)}</span>}
                 title={
                   <Space size={8}>
-                    <Text strong>{session.description || session.agentic_tool}</Text>
+                    <Text strong>
+                      {session.title || session.description || session.agentic_tool}
+                    </Text>
                     <Badge status={getStatusColor(session.status)} />
                   </Space>
                 }
