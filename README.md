@@ -14,38 +14,55 @@ Agor turns every AI session into a composable, inspectable, and reusable buildin
 
 ---
 
-## 🚀 Try Agor in GitHub Codespaces (Sandbox)
+## 🚀 Try Agor in GitHub Codespaces
 
-**No installation required** – Get a fully functional Agor instance in < 60 seconds:
+**No installation required** – Choose your experience:
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mistercrunch/agor?quickstart=1)
+### 🎮 Playground (Recommended for first-timers)
+
+**Fast boot** (~10-20s) – Pre-built production binaries, ready to explore:
+
+[![Open Playground in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mistercrunch/agor?quickstart=1&devcontainer_path=.devcontainer%2Fplayground%2Fdevcontainer.json)
 
 **What you get:**
 
-- ✅ Daemon + UI auto-running on :3030 and :5173
-- ✅ Docker-in-Docker for environment management
-- ✅ Port-forwarded URLs (private or public)
+- ⚡ Ultra-fast startup (no build step)
+- ✅ Production-like environment
+- ✅ Pre-installed AI CLIs (Claude Code, Codex, Gemini)
 - ✅ Full multiplayer support
-- ✅ Pre-installed AI agent CLIs (Claude Code, Codex, Gemini)
+- 📦 Read-only experience (perfect for demos)
 
-**⚠️ Sandbox Mode:**
+### 🛠️ Development (For contributors)
+
+**Full dev environment** (~60-90s) – Editable source, hot reload:
+
+[![Open Dev in Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mistercrunch/agor?quickstart=1&devcontainer_path=.devcontainer%2Fdev%2Fdevcontainer.json)
+
+**What you get:**
+
+- 🔥 Hot module reload (Vite HMR)
+- ✏️ Editable source code
+- 🧪 Development tools and debugger
+- 🔧 Modify and contribute to Agor
+
+---
+
+**⚠️ Both modes:**
 
 - Early beta - Not production-ready
-- Avoid storing sensitive data (API keys, credentials)
-- Codespaces free tier: 60 hours/month ([check your usage](https://github.com/settings/billing))
+- Ephemeral data (lost on rebuild)
+- Codespaces free tier: 60 hours/month ([check usage](https://github.com/settings/billing))
 
 **Getting Started:**
 
-1. Click the badge above → Wait for services to start (~60s)
-2. Open forwarded URL for port 5173 (UI) in browser
-3. Run `agor init` in terminal to configure API keys (optional)
-4. Create a session and start orchestrating!
+1. Click badge above → Services auto-start
+2. Open forwarded port 5173 (UI) in browser
+3. Create a session and start orchestrating!
 
-**Collaborating:**
+**For collaboration:**
 
-1. Open **Ports** panel in VS Code
-2. Right-click port 5173 → **Port Visibility** → **Public**
-3. Share the public URL with teammates
+1. Ports panel → Right-click 5173 → Port Visibility → Public
+2. Share the public URL with teammates
 
 ---
 

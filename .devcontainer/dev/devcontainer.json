@@ -1,8 +1,8 @@
 {
-  "name": "Agor (choose configuration)",
+  "name": "Agor Development",
   "build": {
-    "dockerfile": "playground/Dockerfile",
-    "context": ".."
+    "dockerfile": "Dockerfile",
+    "context": "../.."
   },
   "containerEnv": {
     "VITE_CODESPACES": "true"
@@ -18,7 +18,8 @@
       "onAutoForward": "openBrowserOnce"
     }
   },
-  "postStartCommand": "bash .devcontainer/playground/start-services.sh",
+  "postCreateCommand": "pnpm install && pnpm -r build",
+  "postStartCommand": "bash .devcontainer/dev/start-services.sh",
   "customizations": {
     "vscode": {
       "extensions": [
