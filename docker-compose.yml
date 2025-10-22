@@ -5,16 +5,16 @@ services:
       dockerfile: Dockerfile.dev
     # No container_name - allows multiple instances via docker compose -p flag
     ports:
-      # Expose daemon port (so browser can connect)
-      - '3030:3030'
-      # Expose UI port (configurable via PORT env var)
-      - '${PORT:-5173}:${PORT:-5173}'
+      # Expose daemon port (so browser can connect) - configurable via DAEMON_PORT
+      - '${DAEMON_PORT:-3030}:3030'
+      # Expose UI port (configurable via UI_PORT env var)
+      - '${UI_PORT:-5173}:5173'
     environment:
       # Daemon configuration (internal only, not exposed to host)
       - NODE_ENV=development
 
       # UI configuration
-      - VITE_PORT=${PORT:-5173}
+      - VITE_PORT=${UI_PORT:-5173}
       # UI connects to daemon via localhost (inside container)
       - VITE_DAEMON_URL=http://localhost:3030
 
