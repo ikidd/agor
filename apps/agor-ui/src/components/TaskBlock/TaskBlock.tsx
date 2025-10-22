@@ -10,6 +10,15 @@
  */
 
 import {
+  type Message,
+  type PermissionRequestContent,
+  type PermissionScope,
+  PermissionStatus,
+  type Task,
+  TaskStatus,
+  type User,
+} from '@agor/core/types';
+import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   DownOutlined,
@@ -28,17 +37,15 @@ import { Bubble } from '@ant-design/x';
 import { Avatar, Collapse, Space, Spin, Tag, Typography, theme } from 'antd';
 import type React from 'react';
 import { useMemo } from 'react';
-import { useTaskEvents } from '../../hooks/useTaskEvents';
 import { useAgorClient } from '../../hooks/useAgorClient';
-import { type Message, type Task, type User, TaskStatus } from '@agor/core/types';
-import { PermissionStatus, PermissionScope, type PermissionRequestContent } from '@agor/core/types';
+import { useTaskEvents } from '../../hooks/useTaskEvents';
 import { AgentChain } from '../AgentChain';
 import { MessageBlock } from '../MessageBlock';
 import { CreatedByTag } from '../metadata/CreatedByTag';
 import { PermissionRequestBlock } from '../PermissionRequestBlock';
 import { GitStatePill } from '../Pill';
-import { ToolIcon } from '../ToolIcon';
 import ToolExecutingIndicator from '../ToolExecutingIndicator';
+import { ToolIcon } from '../ToolIcon';
 
 const { Text, Paragraph } = Typography;
 
@@ -65,11 +72,18 @@ interface TaskBlockProps {
 }
 
 /**
- * Check if assistant message contains ONLY tools/thinking (no user-facing text)
+ * Check if message contains ONLY tools/thinking/tool-results (no user-facing text)
  * Returns true if message should be in AgentChain, false if it should be a regular message bubble
  */
 function isAgentChainMessage(message: Message): boolean {
-  // Only assistant messages
+  // EXCEPTION: User messages with ONLY tool_result blocks are part of agent execution
+  // (tool results are technically "user" role per Anthropic API, but they're automated responses)
+  if (message.role === 'user' && Array.isArray(message.content)) {
+    const hasOnlyToolResults = message.content.every(block => block.type === 'tool_result');
+    if (hasOnlyToolResults) return true; // Part of agent chain, don't break it
+  }
+
+  // Only assistant messages beyond this point
   if (message.role !== 'assistant') return false;
 
   // String content - this is user-facing response, NOT agent chain
