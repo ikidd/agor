@@ -37,7 +37,6 @@ yarn-error.log*
 
 # Monorepo
 .turbo/
-pnpm-lock.yaml
 .pnpm-store/
 
 # Agor specific
