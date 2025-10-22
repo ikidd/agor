@@ -1,3 +1,4 @@
+import type { Task } from '@agor/core/types';
 import {
   CheckCircleFilled,
   ClockCircleOutlined,
@@ -10,7 +11,6 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import { List, Space, Spin, Tag, Tooltip, Typography, theme } from 'antd';
-import type { Task } from '@agor/core/types';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -66,7 +66,7 @@ const TaskListItem = ({ task, onClick, compact = false }: TaskListItemProps) => 
         <div style={{ marginBottom: 4 }}>
           <Space size={8}>
             <Tooltip title={<div style={{ whiteSpace: 'pre-wrap' }}>{task.full_prompt}</div>}>
-              {getStatusIcon()}
+              <span>{getStatusIcon()}</span>
             </Tooltip>
             <Text style={{ fontSize: compact ? 13 : 14, fontWeight: 500 }}>
               {displayDescription}
@@ -89,14 +89,16 @@ const TaskListItem = ({ task, onClick, compact = false }: TaskListItemProps) => 
             )}
             {!compact && cleanSha && (
               <Tooltip title={isDirty ? 'Uncommitted changes' : 'Clean git state'}>
-                <Tag icon={<GithubOutlined />} color={isDirty ? 'orange' : 'purple'}>
-                  <Space size={4}>
-                    <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
-                      {cleanSha.substring(0, 7)}
-                    </Text>
-                    {isDirty && <EditOutlined style={{ fontSize: 10 }} />}
-                  </Space>
-                </Tag>
+                <span>
+                  <Tag icon={<GithubOutlined />} color={isDirty ? 'orange' : 'purple'}>
+                    <Space size={4}>
+                      <Text style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                        {cleanSha.substring(0, 7)}
+                      </Text>
+                      {isDirty && <EditOutlined style={{ fontSize: 10 }} />}
+                    </Space>
+                  </Tag>
+                </span>
               </Tooltip>
             )}
           </Space>
