@@ -1,3 +1,4 @@
+import { renderTemplate } from '@agor/core/templates/handlebars-helpers';
 import type { Repo, Worktree } from '@agor/core/types';
 import {
   BranchesOutlined,
@@ -208,7 +209,7 @@ export const WorktreesTable: React.FC<WorktreesTableProps> = ({
           status === 'running' || status === 'starting' || healthStatus === 'healthy';
 
         return (
-          <Space size="small">
+          <Space size={4}>
             {getEnvStatusIcon(record)}
             {hasEnvConfig && (
               <>
@@ -241,11 +242,20 @@ export const WorktreesTable: React.FC<WorktreesTableProps> = ({
                     onClick={e => {
                       e.stopPropagation();
                       // Render the URL template with worktree context
-                      const url = repo.environment_config.health_check.url_template
-                        .replace(/\{\{worktree\.unique_id\}\}/g, String(record.worktree_unique_id))
-                        .replace(/\{\{worktree\.name\}\}/g, record.name)
-                        .replace(/\{\{worktree\.path\}\}/g, record.path)
-                        .replace(/\{\{repo\.slug\}\}/g, repo.slug);
+                      const templateContext = {
+                        worktree: {
+                          unique_id: record.worktree_unique_id,
+                          name: record.name,
+                          path: record.path,
+                        },
+                        repo: {
+                          slug: repo.slug,
+                        },
+                      };
+                      const url = renderTemplate(
+                        repo.environment_config.health_check.url_template,
+                        templateContext
+                      );
                       window.open(url, '_blank');
                     }}
                     style={{ padding: '0 4px' }}

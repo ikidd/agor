@@ -85,6 +85,8 @@ export interface AppProps {
       pullLatest: boolean;
     }
   ) => Promise<void>;
+  onStartEnvironment?: (worktreeId: string) => void;
+  onStopEnvironment?: (worktreeId: string) => void;
   onCreateUser?: (data: CreateUserInput) => void;
   onUpdateUser?: (userId: string, updates: UpdateUserInput) => void;
   onDeleteUser?: (userId: string) => void;
@@ -125,6 +127,8 @@ export const App: React.FC<AppProps> = ({
   onDeleteWorktree,
   onUpdateWorktree,
   onCreateWorktree,
+  onStartEnvironment,
+  onStopEnvironment,
   onCreateUser,
   onUpdateUser,
   onDeleteUser,
@@ -361,6 +365,8 @@ export const App: React.FC<AppProps> = ({
         onDeleteWorktree={onDeleteWorktree}
         onUpdateWorktree={onUpdateWorktree}
         onCreateWorktree={onCreateWorktree}
+        onStartEnvironment={onStartEnvironment}
+        onStopEnvironment={onStopEnvironment}
         onCreateUser={onCreateUser}
         onUpdateUser={onUpdateUser}
         onDeleteUser={onDeleteUser}
