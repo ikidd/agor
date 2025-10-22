@@ -77,7 +77,6 @@ export const EnvironmentTab: React.FC<EnvironmentTabProps> = ({
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
-  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [lastHealthCheck, setLastHealthCheck] = useState(
     worktree.environment_instance?.last_health_check
   );
@@ -86,17 +85,9 @@ export const EnvironmentTab: React.FC<EnvironmentTabProps> = ({
   // Sync state when worktree prop changes
   useEffect(() => {
     setEnvStatus(worktree.environment_instance?.status || 'stopped');
-    const newHealthCheck = worktree.environment_instance?.last_health_check;
-
-    // If health check timestamp changed, show checking state briefly
-    if (newHealthCheck?.timestamp !== lastHealthCheck?.timestamp) {
-      setIsCheckingHealth(true);
-      setTimeout(() => setIsCheckingHealth(false), 500);
-    }
-
-    setLastHealthCheck(newHealthCheck);
+    setLastHealthCheck(worktree.environment_instance?.last_health_check);
     setProcessInfo(worktree.environment_instance?.process);
-  }, [worktree, lastHealthCheck?.timestamp]);
+  }, [worktree]);
 
   // WebSocket listener for real-time environment updates
   useEffect(() => {
@@ -754,8 +745,8 @@ export const EnvironmentTab: React.FC<EnvironmentTabProps> = ({
                       }}
                     >
                       <Space size="small">
-                        {isCheckingHealth && <Spin size="small" />}
-                        {!isCheckingHealth && getHealthBadge()}
+                        {getHealthBadge()}
+                        {envStatus === 'running' && <Spin size="small" />}
                         <Text style={{ fontSize: 11 }}>
                           Health: <Text strong>{lastHealthCheck.status}</Text>
                         </Text>
