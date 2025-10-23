@@ -253,7 +253,7 @@ export interface WorktreeInfo {
  * @param worktreePath - Path where worktree should be created
  * @param ref - Branch/tag/commit to checkout
  * @param createBranch - Whether to create a new branch
- * @param pullLatest - Whether to fetch from remote before creating worktree
+ * @param pullLatest - Whether to fetch from remote before creating worktree (defaults to true)
  * @param sourceBranch - Source branch to base new branch on (used with createBranch)
  */
 export async function createWorktree(
@@ -261,7 +261,7 @@ export async function createWorktree(
   worktreePath: string,
   ref: string,
   createBranch: boolean = false,
-  pullLatest: boolean = false,
+  pullLatest: boolean = true, // Changed default to true - always fetch latest!
   sourceBranch?: string
 ): Promise<void> {
   const git = createGit(repoPath);

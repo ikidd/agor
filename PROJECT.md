@@ -55,6 +55,7 @@ See [context/explorations/](context/explorations/) for detailed designs:
 
 # Critical Path
 
+- troubleshoot Claude session without clear/final results
 - ⏳ **Concepts & Reports** - integrate in UI/CLI as first-class primitives
   - Concept management (CRUD/CLI) - many-to-many per session, shows as readonly
   - Report management + production system
@@ -75,13 +76,7 @@ See [context/explorations/](context/explorations/) for detailed designs:
 
 # Nice to Have
 
-- ✅ PR/Issue URL fields in session metadata
-- [ ] **Git state transitions** - Show start → end state in task metadata
-  - Capture `ref_at_end` and `sha_at_end` when task completes
-  - Display in UI as: `main : abc1234 → main : def5678-dirty`
-  - Useful for seeing what changed during a task execution
 - [ ] **Token count & cost** - show $ per task/session (when applicable)
 - [ ] **`@`-triggered autocomplete** - mention sessions, repos, concepts
-- [ ] **Session viewers** - mini avatar badges on cards showing who's viewing
 - [ ] **Typing indicators** - "User is typing..." in prompt input
-- [ ] rename agent->tool
+- [ ] agor worktree .\* CLI commands (list/create/delete)
