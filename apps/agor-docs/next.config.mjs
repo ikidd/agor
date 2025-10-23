@@ -9,4 +9,9 @@ const withNextra = nextra({
 
 export default withNextra({
   reactStrictMode: true,
+  output: 'export',
+  images: {
+    unoptimized: true,
+  },
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
 });

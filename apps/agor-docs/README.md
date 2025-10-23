@@ -71,6 +71,23 @@ Output: `.next/` directory
 
 ## Deployment
 
-Recommended: Cloudflare Pages or Vercel
+Docs are automatically deployed to GitHub Pages on every push to `main` that changes:
 
-See [context/explorations/docs-website.md](../../context/explorations/docs-website.md) for deployment options.
+- `apps/agor-docs/**`
+- `apps/agor-cli/src/commands/**` (CLI docs are auto-generated)
+
+**GitHub Pages Setup (one-time):**
+
+1. Go to repository Settings → Pages
+2. Source: **GitHub Actions**
+3. That's it! The workflow (`.github/workflows/deploy-docs.yml`) handles the rest.
+
+**Manual deployment trigger:**
+
+```bash
+gh workflow run deploy-docs.yml
+```
+
+**Deployment URL:** https://mistercrunch.github.io/agor/
+
+Alternative options: Cloudflare Pages or Vercel (see [context/explorations/docs-website.md](../../context/explorations/docs-website.md))
