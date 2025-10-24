@@ -140,19 +140,19 @@ const WorktreeCard = ({
           ({sessions.length})
         </Typography.Text>
       </Space>
-      {sessions.length > 0 && onCreateSession && (
+      {onCreateSession && (
         <div className="nodrag">
           <Button
-            type="text"
+            type="default"
             size="small"
             icon={<PlusOutlined />}
             onClick={e => {
               e.stopPropagation();
               onCreateSession(worktree.worktree_id);
             }}
-            title="Create new session"
-            style={{ fontSize: 12 }}
-          />
+          >
+            New Session
+          </Button>
         </div>
       )}
     </div>

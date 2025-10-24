@@ -32,11 +32,7 @@ interface AgenticToolOption {
 }
 
 import { NewSessionButton } from '../NewSessionButton';
-import {
-  type NewSessionConfig,
-  NewSessionModal,
-  type RepoReferenceOption,
-} from '../NewSessionModal';
+import { type NewSessionConfig, NewSessionModal } from '../NewSessionModal';
 import { type NewWorktreeConfig, NewWorktreeModal } from '../NewWorktreeModal';
 import { SessionCanvas } from '../SessionCanvas';
 import SessionDrawer from '../SessionDrawer';
@@ -61,8 +57,6 @@ export interface AppProps {
   users: User[]; // All users for multiplayer metadata
   mcpServers: MCPServer[];
   sessionMcpServerIds: Record<string, string[]>; // Map: sessionId -> mcpServerIds[]
-  worktreeOptions: RepoReferenceOption[];
-  repoOptions: RepoReferenceOption[];
   initialBoardId?: string;
   onCreateSession?: (config: NewSessionConfig, boardId: string) => void;
   onForkSession?: (sessionId: string, prompt: string) => void;
@@ -115,8 +109,6 @@ export const App: React.FC<AppProps> = ({
   users,
   mcpServers,
   sessionMcpServerIds,
-  worktreeOptions,
-  repoOptions,
   initialBoardId,
   onCreateSession,
   onForkSession,
@@ -144,7 +136,7 @@ export const App: React.FC<AppProps> = ({
   onUpdateSessionMcpServers,
   onLogout,
 }) => {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [newSessionWorktreeId, setNewSessionWorktreeId] = useState<string | null>(null);
   const [newWorktreeModalOpen, setNewWorktreeModalOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [listDrawerOpen, setListDrawerOpen] = useState(false);
@@ -157,7 +149,7 @@ export const App: React.FC<AppProps> = ({
   const handleCreateSession = (config: NewSessionConfig) => {
     console.log('Creating session with config:', config, 'for board:', currentBoardId);
     onCreateSession?.(config, currentBoardId);
-    setModalOpen(false);
+    setNewSessionWorktreeId(null);
   };
 
   const handleCreateWorktree = async (config: NewWorktreeConfig) => {
@@ -273,6 +265,11 @@ export const App: React.FC<AppProps> = ({
     ? sessions.filter(s => s.worktree_id === selectedWorktree.worktree_id)
     : [];
 
+  // Find worktree for NewSessionModal
+  const newSessionWorktree = newSessionWorktreeId
+    ? worktrees.find(w => w.worktree_id === newSessionWorktreeId)
+    : null;
+
   // Filter worktrees by current board (via board_objects)
   const boardWorktreeIds = boardObjects
     .filter(bo => bo.board_id === currentBoard?.board_id)
@@ -326,6 +323,7 @@ export const App: React.FC<AppProps> = ({
           worktrees={boardWorktrees}
           boardObjects={boardObjects}
           currentUserId={user?.user_id}
+          availableAgents={availableAgents}
           mcpServers={mcpServers}
           sessionMcpServerIds={sessionMcpServerIds}
           onSessionClick={handleSessionClick}
@@ -335,6 +333,9 @@ export const App: React.FC<AppProps> = ({
           onOpenSettings={sessionId => {
             setSessionSettingsId(sessionId);
           }}
+          onCreateSessionForWorktree={worktreeId => {
+            setNewSessionWorktreeId(worktreeId);
+          }}
           onOpenWorktree={worktreeId => {
             setWorktreeModalWorktreeId(worktreeId);
           }}
@@ -342,19 +343,17 @@ export const App: React.FC<AppProps> = ({
         />
         <NewSessionButton onClick={() => setNewWorktreeModalOpen(true)} />
       </Content>
-      <NewSessionModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onCreate={handleCreateSession}
-        onOpenSettings={() => setSettingsOpen(true)}
-        // biome-ignore lint/suspicious/noExplicitAny: AgenticToolOption vs AgenticTool ID type mismatch
-        availableAgents={availableAgents as any}
-        worktreeOptions={worktreeOptions}
-        worktrees={worktrees}
-        repoOptions={repoOptions}
-        repos={repos}
-        mcpServers={mcpServers}
-      />
+      {newSessionWorktreeId && (
+        <NewSessionModal
+          open={true}
+          onClose={() => setNewSessionWorktreeId(null)}
+          onCreate={handleCreateSession}
+          availableAgents={availableAgents}
+          worktreeId={newSessionWorktreeId}
+          worktree={newSessionWorktree || undefined}
+          mcpServers={mcpServers}
+        />
+      )}
       <SessionDrawer
         client={client}
         session={selectedSession}

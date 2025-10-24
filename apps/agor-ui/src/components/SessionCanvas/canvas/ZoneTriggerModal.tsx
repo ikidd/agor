@@ -1,17 +1,27 @@
 /**
  * Modal for handling zone triggers on worktree drops
- * Two-step flow:
- * 1. Select session (existing or create new)
- * 2. Choose action (Prompt/Fork/Spawn)
+ * Flow:
+ * 1. Primary choice: Create new session OR Reuse existing session
+ * 2. If reuse: Select session and choose action (Prompt/Fork/Spawn)
  */
 
-import type { Session, Worktree, WorktreeID, ZoneTrigger } from '@agor/core/types';
-import { PlusCircleOutlined } from '@ant-design/icons';
-import { Alert, Button, Modal, Radio, Select, Space, Typography } from 'antd';
+import type {
+  AgenticTool,
+  AgenticToolName,
+  MCPServer,
+  PermissionMode,
+  Session,
+  Worktree,
+  WorktreeID,
+  ZoneTrigger,
+} from '@agor/core/types';
+import { DownOutlined } from '@ant-design/icons';
+import { Alert, Collapse, Form, Modal, Radio, Select, Space, Typography } from 'antd';
 import Handlebars from 'handlebars';
 import { useEffect, useMemo, useState } from 'react';
-
-const { Paragraph, Text } = Typography;
+import { AgenticToolConfigForm } from '../../AgenticToolConfigForm';
+import { AgentSelectionCard } from '../../AgentSelectionCard';
+import type { ModelConfig } from '../../ModelSelector';
 
 interface ZoneTriggerModalProps {
   open: boolean;
@@ -24,10 +34,17 @@ interface ZoneTriggerModalProps {
   boardName?: string;
   boardDescription?: string;
   boardCustomContext?: Record<string, unknown>;
+  availableAgents: AgenticTool[];
+  mcpServers: MCPServer[];
   onExecute: (params: {
     sessionId: string | 'new';
     action: 'prompt' | 'fork' | 'spawn';
     renderedTemplate: string;
+    // New session config (only when sessionId === 'new')
+    agent?: string;
+    modelConfig?: ModelConfig;
+    permissionMode?: PermissionMode;
+    mcpServerIds?: string[];
   }) => Promise<void>;
 }
 
@@ -42,12 +59,22 @@ export const ZoneTriggerModal = ({
   boardName,
   boardDescription,
   boardCustomContext,
+  availableAgents,
+  mcpServers,
   onExecute,
 }: ZoneTriggerModalProps) => {
-  // Step 1: Session selection
-  const [selectedSessionId, setSelectedSessionId] = useState<string | 'new'>('new');
+  const [form] = Form.useForm();
 
-  // Step 2: Action selection
+  // Primary mode: create new or reuse existing
+  const [mode, setMode] = useState<'create_new' | 'reuse_existing'>('create_new');
+
+  // Agent selection (only for create_new mode)
+  const [selectedAgent, setSelectedAgent] = useState<string>('claude-code');
+
+  // Session selection (only for reuse mode)
+  const [selectedSessionId, setSelectedSessionId] = useState<string>('');
+
+  // Action selection (only for reuse mode)
   const [selectedAction, setSelectedAction] = useState<'prompt' | 'fork' | 'spawn'>('prompt');
 
   // Filter sessions for this worktree
@@ -57,7 +84,7 @@ export const ZoneTriggerModal = ({
 
   // Smart default: Most recent active/completed session
   const smartDefaultSession = useMemo(() => {
-    if (worktreeSessions.length === 0) return 'new';
+    if (worktreeSessions.length === 0) return '';
 
     // Prioritize running sessions
     const runningSessions = worktreeSessions.filter(s => s.status === 'running');
@@ -78,9 +105,10 @@ export const ZoneTriggerModal = ({
     )[0].session_id;
   }, [worktreeSessions]);
 
-  // Reset to smart default when modal opens
+  // Reset to defaults when modal opens
   useEffect(() => {
     if (open) {
+      setMode('create_new');
       setSelectedSessionId(smartDefaultSession);
       setSelectedAction('prompt');
     }
@@ -115,7 +143,7 @@ export const ZoneTriggerModal = ({
           context: boardCustomContext || {},
         },
         session:
-          selectedSessionId !== 'new'
+          mode === 'reuse_existing' && selectedSessionId
             ? {
                 description:
                   worktreeSessions.find(s => s.session_id === selectedSessionId)?.description || '',
@@ -141,16 +169,32 @@ export const ZoneTriggerModal = ({
     boardName,
     boardDescription,
     boardCustomContext,
+    mode,
     selectedSessionId,
     worktreeSessions,
   ]);
 
   const handleExecute = async () => {
-    await onExecute({
-      sessionId: selectedSessionId,
-      action: selectedAction,
-      renderedTemplate,
-    });
+    if (mode === 'create_new') {
+      // Get form values for new session
+      const formValues = form.getFieldsValue();
+      await onExecute({
+        sessionId: 'new',
+        action: 'prompt',
+        renderedTemplate,
+        agent: selectedAgent,
+        modelConfig: formValues.modelConfig,
+        permissionMode: formValues.permissionMode,
+        mcpServerIds: formValues.mcpServerIds,
+      });
+    } else {
+      // Reuse existing session
+      await onExecute({
+        sessionId: selectedSessionId,
+        action: selectedAction,
+        renderedTemplate,
+      });
+    }
   };
 
   return (
@@ -164,103 +208,140 @@ export const ZoneTriggerModal = ({
       width={700}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* Step 1: Session Selection */}
+        {/* Primary Choice: Create New or Reuse */}
         <div>
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>
-            Step 1: Select Session
-          </Text>
-          <Select
-            value={selectedSessionId}
-            onChange={setSelectedSessionId}
+          <Radio.Group
+            value={mode}
+            onChange={e => setMode(e.target.value)}
             style={{ width: '100%' }}
-            size="large"
-            options={[
-              {
-                value: 'new',
-                label: (
-                  <span>
-                    <PlusCircleOutlined /> Create New Root Session
-                  </span>
-                ),
-              },
-              ...worktreeSessions.map(session => ({
-                value: session.session_id,
-                label: (
-                  <span>
-                    {session.description || session.session_id.substring(0, 8)} ({session.status})
-                  </span>
-                ),
-              })),
-            ]}
-          />
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Radio value="create_new">Create a new session</Radio>
+              <Radio value="reuse_existing" disabled={worktreeSessions.length === 0}>
+                Reuse a session
+              </Radio>
+            </Space>
+          </Radio.Group>
           {worktreeSessions.length === 0 && (
             <Alert
               message="No existing sessions in this worktree"
               type="info"
               showIcon
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 12 }}
             />
           )}
         </div>
 
-        {/* Step 2: Action Selection */}
-        <div>
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>
-            Step 2: Choose Action
-          </Text>
-          <Radio.Group
-            value={selectedAction}
-            onChange={e => setSelectedAction(e.target.value)}
-            style={{ width: '100%' }}
-          >
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Radio value="prompt">
-                <strong>Prompt</strong> - Send message to selected session
-              </Radio>
-              <Radio value="fork" disabled={selectedSessionId === 'new'}>
-                <strong>Fork</strong> - Fork selected session and send message
-              </Radio>
-              <Radio value="spawn" disabled={selectedSessionId === 'new'}>
-                <strong>Spawn</strong> - Spawn child session and send message
-              </Radio>
-            </Space>
-          </Radio.Group>
-        </div>
+        {/* Agent Configuration (only for create_new mode) */}
+        {mode === 'create_new' && (
+          <Form form={form} layout="vertical">
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Select Agent
+              </Typography.Text>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 8,
+                  marginTop: 8,
+                }}
+              >
+                {availableAgents.map(agent => (
+                  <AgentSelectionCard
+                    key={agent.id}
+                    agent={agent}
+                    selected={selectedAgent === agent.id}
+                    onClick={() => setSelectedAgent(agent.id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <Collapse
+              ghost
+              expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} />}
+              items={[
+                {
+                  key: 'agentic-tool-config',
+                  label: <Typography.Text strong>Agentic Tool Configuration</Typography.Text>,
+                  children: (
+                    <AgenticToolConfigForm
+                      agenticTool={(selectedAgent as AgenticToolName) || 'claude-code'}
+                      mcpServers={mcpServers}
+                      showHelpText={true}
+                    />
+                  ),
+                },
+              ]}
+              style={{ marginTop: 16 }}
+            />
+          </Form>
+        )}
+
+        {/* Session & Action Selection (only for reuse mode) */}
+        {mode === 'reuse_existing' && (
+          <>
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Select Session
+              </Typography.Text>
+              <Select
+                value={selectedSessionId}
+                onChange={setSelectedSessionId}
+                style={{ width: '100%' }}
+                size="large"
+                options={worktreeSessions.map(session => ({
+                  value: session.session_id,
+                  label: (
+                    <span>
+                      {session.description || session.session_id.substring(0, 8)} ({session.status})
+                    </span>
+                  ),
+                }))}
+              />
+            </div>
+
+            <div>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Choose Action
+              </Typography.Text>
+              <Radio.Group
+                value={selectedAction}
+                onChange={e => setSelectedAction(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Radio value="prompt">Prompt - Send message to selected session</Radio>
+                  <Radio value="fork">Fork - Fork selected session and send message</Radio>
+                  <Radio value="spawn">Spawn - Spawn child session and send message</Radio>
+                </Space>
+              </Radio.Group>
+            </div>
+          </>
+        )}
 
         {/* Template Preview */}
         <div>
-          <Text strong style={{ display: 'block', marginBottom: 8 }}>
+          <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
             Rendered Prompt
-          </Text>
-          <Paragraph
-            code
+          </Typography.Text>
+          <pre
             style={{
               whiteSpace: 'pre-wrap',
               background: '#1f1f1f',
               padding: '12px',
               borderRadius: '4px',
-              marginBottom: 0,
+              margin: 0,
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              lineHeight: '1.5',
+              color: '#d4d4d4',
             }}
           >
             {renderedTemplate}
-          </Paragraph>
+          </pre>
         </div>
-
-        {/* Help Text */}
-        <Alert
-          message="What happens when you execute?"
-          description={
-            selectedSessionId === 'new'
-              ? 'A new root session will be created in this worktree, and the rendered prompt will be sent to it.'
-              : selectedAction === 'prompt'
-                ? 'The rendered prompt will be sent as a message to the selected session.'
-                : selectedAction === 'fork'
-                  ? 'The selected session will be forked at its current state, and the rendered prompt will be sent to the new fork.'
-                  : 'A new child session will be spawned from the selected session, and the rendered prompt will be sent to it.'
-          }
-          type="info"
-          showIcon
-        />
       </Space>
     </Modal>
   );

@@ -20,7 +20,7 @@ import {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './SessionCanvas.css';
-import type { Board, BoardObject, Session, Task, Worktree } from '@agor/core/types';
+import type { AgenticTool, Board, BoardObject, Session, Task, Worktree } from '@agor/core/types';
 import { useCursorTracking } from '../../hooks/useCursorTracking';
 import { usePresence } from '../../hooks/usePresence';
 import SessionCard from '../SessionCard';
@@ -41,6 +41,7 @@ interface SessionCanvasProps {
   worktrees: import('@agor/core/types').Worktree[];
   boardObjects: import('@agor/core/types').BoardEntityObject[];
   currentUserId?: string;
+  availableAgents?: AgenticTool[];
   mcpServers?: MCPServer[];
   sessionMcpServerIds?: Record<string, string[]>; // Map sessionId -> mcpServerIds[]
   onSessionClick?: (sessionId: string) => void;
@@ -155,6 +156,7 @@ const SessionCanvas = ({
   tasks,
   users,
   currentUserId,
+  availableAgents = [],
   mcpServers = [],
   sessionMcpServerIds = {},
   onSessionClick,
@@ -1358,7 +1360,17 @@ const SessionCanvas = ({
           boardName={board?.name}
           boardDescription={board?.description}
           boardCustomContext={board?.custom_context}
-          onExecute={async ({ sessionId, action, renderedTemplate }) => {
+          availableAgents={availableAgents}
+          mcpServers={mcpServers}
+          onExecute={async ({
+            sessionId,
+            action,
+            renderedTemplate,
+            agent,
+            modelConfig,
+            permissionMode,
+            mcpServerIds,
+          }) => {
             if (!client) {
               console.error('❌ Cannot execute trigger: client not available');
               setWorktreeTriggerModal(null);
@@ -1376,12 +1388,22 @@ const SessionCanvas = ({
               if (sessionId === 'new') {
                 const newSession = await client.service('sessions').create({
                   worktree_id: worktreeTriggerModal.worktreeId,
+                  agentic_tool: agent || 'claude-code',
                   description: `Session from zone "${worktreeTriggerModal.zoneName}"`,
                   status: 'idle',
-                  agent: 'claude',
+                  model_config: modelConfig,
+                  permission_mode: permissionMode,
                 });
                 targetSessionId = newSession.session_id;
                 console.log(`✓ Created new session: ${targetSessionId.substring(0, 8)}`);
+
+                // Attach MCP servers if provided
+                if (mcpServerIds && mcpServerIds.length > 0) {
+                  await client
+                    .service(`sessions/${targetSessionId}/mcp-servers`)
+                    .patch(null, { mcpServerIds });
+                  console.log(`✓ Attached ${mcpServerIds.length} MCP servers to session`);
+                }
               }
 
               // Execute action
