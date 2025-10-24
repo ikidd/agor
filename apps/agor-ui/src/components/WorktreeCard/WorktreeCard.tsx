@@ -15,8 +15,6 @@ import { useState } from 'react';
 import { CreatedByTag } from '../metadata';
 import { ToolIcon } from '../ToolIcon';
 
-const { Text } = Typography;
-
 const WORKTREE_CARD_MAX_WIDTH = 600;
 
 interface WorktreeCardProps {
@@ -85,9 +83,9 @@ const WorktreeCard = ({
   const sessionListContent = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {sessions.length === 0 ? (
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           No sessions yet
-        </Text>
+        </Typography.Text>
       ) : (
         sessions.map(session => {
           const sessionTasks = tasks[session.session_id] || [];
@@ -115,9 +113,9 @@ const WorktreeCard = ({
               >
                 <Space size={4} align="center">
                   <ToolIcon tool={session.agentic_tool} size={20} />
-                  <Text strong style={{ fontSize: 12 }}>
+                  <Typography.Text strong style={{ fontSize: 12 }}>
                     {session.agentic_tool}
-                  </Text>
+                  </Typography.Text>
                   {session.status === TaskStatus.RUNNING ? (
                     <Spin size="small" />
                   ) : (
@@ -151,20 +149,20 @@ const WorktreeCard = ({
               {isExpanded && (
                 <div style={{ marginTop: 8, paddingLeft: 24 }}>
                   {(session.title || session.description) && (
-                    <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                    <Typography.Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
                       {session.title || session.description}
-                    </Text>
+                    </Typography.Text>
                   )}
 
-                  <Text type="secondary" style={{ fontSize: 11 }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                     💬 {session.message_count} messages
-                  </Text>
+                  </Typography.Text>
 
                   {sessionTasks.length > 0 && (
                     <div style={{ marginTop: 4 }}>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                         📋 {sessionTasks.length} tasks
-                      </Text>
+                      </Typography.Text>
                     </div>
                   )}
                 </div>
@@ -186,10 +184,10 @@ const WorktreeCard = ({
         width: '100%',
       }}
     >
-      <Text strong>Sessions</Text>
-      <Text type="secondary" style={{ fontSize: 12 }}>
+      <Typography.Text strong>Sessions</Typography.Text>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         ({sessions.length})
-      </Text>
+      </Typography.Text>
     </div>
   );
 
@@ -217,12 +215,12 @@ const WorktreeCard = ({
             <FolderOpenOutlined style={{ fontSize: 32, color: '#1890ff' }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <Text strong className="nodrag">
+            <Typography.Text strong className="nodrag">
               {worktree.name}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {worktree.ref}
-            </Text>
+            </Typography.Text>
           </div>
         </Space>
 
@@ -329,9 +327,9 @@ const WorktreeCard = ({
         {/* Notes */}
         {worktree.notes && (
           <div style={{ marginBottom: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
               {worktree.notes}
-            </Text>
+            </Typography.Text>
           </div>
         )}
       </div>
@@ -353,9 +351,9 @@ const WorktreeCard = ({
 
         {/* Footer metadata */}
         <div style={{ marginTop: 12 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             📁 {worktree.path}
-          </Text>
+          </Typography.Text>
         </div>
       </div>
     </Card>
