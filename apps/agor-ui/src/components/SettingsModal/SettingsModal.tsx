@@ -135,7 +135,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {
             key: 'repos',
             label: 'Repositories',
-            children: <ReposTable repos={repos} onCreate={onCreateRepo} onDelete={onDeleteRepo} />,
+            children: (
+              <ReposTable
+                repos={repos}
+                onCreate={onCreateRepo}
+                onUpdate={onUpdateRepo}
+                onDelete={onDeleteRepo}
+              />
+            ),
           },
           {
             key: 'worktrees',

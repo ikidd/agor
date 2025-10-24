@@ -41,59 +41,12 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
       setCreating(true);
       setError(null);
 
-      // Parse worktree reference (now always required)
-      // Format: "repo-slug:worktree-name" e.g., "agor:test-yo"
-      if (!config.worktreeRef) {
-        throw new Error('Worktree reference is required');
+      // Worktree ID is now passed directly (resolved in NewSessionModal or from worktree creation)
+      if (!config.worktree_id) {
+        throw new Error('Worktree ID is required');
       }
 
-      const parts = config.worktreeRef.split(':');
-      const repoSlug = parts[0];
-      const worktreeName = parts[1];
-
-      if (!repoSlug || !worktreeName) {
-        throw new Error('Invalid worktree reference format. Expected "repo-slug:worktree-name"');
-      }
-
-      console.log(`Creating session with worktree: ${repoSlug}:${worktreeName}`);
-
-      // Find the repo by slug
-      const reposResponse = await client.service('repos').find({});
-      console.log('Repos response:', reposResponse);
-
-      // Handle both array and paginated response formats
-      const repos = Array.isArray(reposResponse) ? reposResponse : reposResponse.data || [];
-      const repo = repos.find((r: Repo) => r.slug === repoSlug);
-      if (!repo) {
-        console.error(
-          'Available repos:',
-          repos.map((r: Repo) => r.slug)
-        );
-        throw new Error(`Repository not found: ${repoSlug}`);
-      }
-
-      console.log('Found repo:', repo.repo_id, repo.slug);
-
-      // Find the worktree by repo_id and name
-      const worktreesResponse = await client.service('worktrees').find({
-        query: { repo_id: repo.repo_id },
-      });
-      console.log('Worktrees response:', worktreesResponse);
-
-      // Handle both array and paginated response formats
-      const worktrees = (
-        Array.isArray(worktreesResponse) ? worktreesResponse : worktreesResponse.data || []
-      ) as Worktree[];
-      const worktree = worktrees.find(w => w.name === worktreeName);
-      if (!worktree) {
-        console.error(
-          'Available worktrees:',
-          worktrees.map(w => w.name)
-        );
-        throw new Error(`Worktree not found: ${worktreeName} in repo ${repoSlug}`);
-      }
-
-      console.log(`Found worktree: ${worktree.worktree_id}`);
+      console.log(`Creating session with worktree_id: ${config.worktree_id}`);
 
       // Create session with worktree_id
       const agenticTool = config.agent as AgenticToolName;
@@ -102,7 +55,7 @@ export function useSessionActions(client: AgorClient | null): UseSessionActionsR
         status: SessionStatus.IDLE,
         title: config.title || undefined,
         description: config.initialPrompt || undefined,
-        worktree_id: worktree.worktree_id,
+        worktree_id: config.worktree_id,
         model_config: config.modelConfig
           ? {
               ...config.modelConfig,

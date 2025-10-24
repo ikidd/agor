@@ -456,6 +456,14 @@ See implementation in `packages/core/src/claude/task-extractor.ts`.
 ### Code Standards
 
 - **Type-driven:** Use branded types for IDs, strict TypeScript
+- **Centralize and reuse types:** ALWAYS import and reuse existing types from `packages/core/src/types/` instead of redefining them. All canonical types are located in the core package:
+  - `packages/core/src/types/session.ts` - Session, SessionStatus, etc.
+  - `packages/core/src/types/task.ts` - Task, TaskStatus, etc.
+  - `packages/core/src/types/worktree.ts` - Worktree, WorktreeEnvironmentInstance, etc.
+  - `packages/core/src/types/repo.ts` - Repo, RepoEnvironmentConfig, etc.
+  - `packages/core/src/types/id.ts` - Branded ID types (SessionID, WorktreeID, etc.)
+  - `packages/core/src/types/message.ts` - Message, MessageType, etc.
+  - `packages/core/src/types/board.ts` - Board, BoardObject, etc.
 - **Read before edit:** Always read files before modifying
 - **Prefer Edit over Write:** Modify existing files when possible
 - **Error handling:** Clean user-facing errors, no stacktraces in CLI

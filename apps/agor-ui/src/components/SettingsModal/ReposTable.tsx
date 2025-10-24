@@ -1,7 +1,7 @@
-import { DeleteOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
+import type { Repo } from '@agor/core/types';
+import { DeleteOutlined, EditOutlined, FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Empty, Form, Input, Modal, Popconfirm, Space, Tag, Typography } from 'antd';
 import { useState } from 'react';
-import type { Repo } from '@agor/core/types';
 
 const { Text } = Typography;
 
@@ -40,12 +40,16 @@ function extractSlugFromUrl(url: string): string {
 interface ReposTableProps {
   repos: Repo[];
   onCreate?: (data: { url: string; slug: string }) => void;
+  onUpdate?: (repoId: string, updates: Partial<Repo>) => void;
   onDelete?: (repoId: string) => void;
 }
 
-export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelete }) => {
-  const [createRepoModalOpen, setCreateRepoModalOpen] = useState(false);
+export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onUpdate, onDelete }) => {
+  const [repoModalOpen, setRepoModalOpen] = useState(false);
+  const [editingRepo, setEditingRepo] = useState<Repo | null>(null);
   const [repoForm] = Form.useForm();
+
+  const isEditing = !!editingRepo;
 
   // Auto-extract slug when URL changes in repo form
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,15 +66,46 @@ export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelet
     onDelete?.(repoId);
   };
 
-  const handleCreateRepo = () => {
-    repoForm.validateFields().then(values => {
-      onCreate?.({
-        url: values.url,
-        slug: values.slug,
-      });
-      repoForm.resetFields();
-      setCreateRepoModalOpen(false);
+  const handleOpenCreateModal = () => {
+    setEditingRepo(null);
+    repoForm.resetFields();
+    setRepoModalOpen(true);
+  };
+
+  const handleOpenEditModal = (repo: Repo) => {
+    setEditingRepo(repo);
+    repoForm.setFieldsValue({
+      slug: repo.slug,
+      default_branch: repo.default_branch || 'main',
     });
+    setRepoModalOpen(true);
+  };
+
+  const handleSaveRepo = () => {
+    repoForm.validateFields().then(values => {
+      if (isEditing && editingRepo) {
+        // Update existing repo
+        onUpdate?.(editingRepo.repo_id, {
+          slug: values.slug,
+          default_branch: values.default_branch,
+        });
+      } else {
+        // Create new repo
+        onCreate?.({
+          url: values.url,
+          slug: values.slug,
+        });
+      }
+      repoForm.resetFields();
+      setEditingRepo(null);
+      setRepoModalOpen(false);
+    });
+  };
+
+  const handleCancelModal = () => {
+    repoForm.resetFields();
+    setEditingRepo(null);
+    setRepoModalOpen(false);
   };
 
   return (
@@ -84,7 +119,7 @@ export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelet
         }}
       >
         <Text type="secondary">Clone and manage git repositories for your sessions.</Text>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateRepoModalOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
           New Repository
         </Button>
       </div>
@@ -111,23 +146,31 @@ export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelet
                 </Space>
               }
               extra={
-                <Popconfirm
-                  title="Delete repository?"
-                  description={
-                    <>
-                      <p>Are you sure you want to delete "{repo.name}"?</p>
-                      <p style={{ color: '#ff4d4f' }}>
-                        ⚠️ This will delete the local repository and all associated worktrees.
-                      </p>
-                    </>
-                  }
-                  onConfirm={() => handleDeleteRepo(repo.repo_id)}
-                  okText="Delete"
-                  cancelText="Cancel"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button type="text" size="small" icon={<DeleteOutlined />} danger />
-                </Popconfirm>
+                <Space>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => handleOpenEditModal(repo)}
+                  />
+                  <Popconfirm
+                    title="Delete repository?"
+                    description={
+                      <>
+                        <p>Are you sure you want to delete "{repo.name}"?</p>
+                        <p style={{ color: '#ff4d4f' }}>
+                          ⚠️ This will delete the local repository and all associated worktrees.
+                        </p>
+                      </>
+                    }
+                    onConfirm={() => handleDeleteRepo(repo.repo_id)}
+                    okText="Delete"
+                    cancelText="Cancel"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+                  </Popconfirm>
+                </Space>
               }
             >
               {/* Repo metadata */}
@@ -168,29 +211,28 @@ export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelet
         </Space>
       )}
 
-      {/* Create Repository Modal */}
+      {/* Create/Edit Repository Modal */}
       <Modal
-        title="Clone Repository"
-        open={createRepoModalOpen}
-        onOk={handleCreateRepo}
-        onCancel={() => {
-          repoForm.resetFields();
-          setCreateRepoModalOpen(false);
-        }}
-        okText="Clone"
+        title={isEditing ? 'Edit Repository' : 'Clone Repository'}
+        open={repoModalOpen}
+        onOk={handleSaveRepo}
+        onCancel={handleCancelModal}
+        okText={isEditing ? 'Save' : 'Clone'}
       >
         <Form form={repoForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            label="Repository URL"
-            name="url"
-            rules={[{ required: true, message: 'Please enter a git repository URL' }]}
-            extra="HTTPS or SSH URL"
-          >
-            <Input
-              placeholder="https://github.com/apache/superset.git"
-              onChange={handleUrlChange}
-            />
-          </Form.Item>
+          {!isEditing && (
+            <Form.Item
+              label="Repository URL"
+              name="url"
+              rules={[{ required: !isEditing, message: 'Please enter a git repository URL' }]}
+              extra="HTTPS or SSH URL"
+            >
+              <Input
+                placeholder="https://github.com/apache/superset.git"
+                onChange={handleUrlChange}
+              />
+            </Form.Item>
+          )}
 
           <Form.Item
             label="Repository Slug"
@@ -204,7 +246,16 @@ export const ReposTable: React.FC<ReposTableProps> = ({ repos, onCreate, onDelet
             ]}
             extra="Auto-detected from URL (editable). Format: org/repo"
           >
-            <Input placeholder="apache/superset" />
+            <Input placeholder="apache/superset" disabled={isEditing} />
+          </Form.Item>
+
+          <Form.Item
+            label="Default Branch"
+            name="default_branch"
+            rules={[{ required: true, message: 'Please enter the default branch' }]}
+            extra="The main branch to base new worktrees on (e.g., 'main', 'master', 'develop')"
+          >
+            <Input placeholder="main" />
           </Form.Item>
         </Form>
       </Modal>

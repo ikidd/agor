@@ -130,9 +130,7 @@ export async function cloneRepo(options: CloneOptions): Promise<CloneResult> {
       // Repository already exists and is valid - just use it!
       console.log(`Repository already exists at ${targetPath}, using existing clone`);
 
-      const repoGit = createGit(targetPath);
-      const branches = await repoGit.branch();
-      const defaultBranch = branches.current || 'main';
+      const defaultBranch = await getDefaultBranch(targetPath);
 
       return {
         path: targetPath,
@@ -162,10 +160,8 @@ export async function cloneRepo(options: CloneOptions): Promise<CloneResult> {
   // Clone the repo
   await git.clone(options.url, targetPath, options.bare ? ['--bare'] : []);
 
-  // Get default branch
-  const repoGit = createGit(targetPath);
-  const branches = await repoGit.branch();
-  const defaultBranch = branches.current || 'main';
+  // Get default branch from remote HEAD
+  const defaultBranch = await getDefaultBranch(targetPath);
 
   return {
     path: targetPath,
@@ -194,6 +190,44 @@ export async function getCurrentBranch(repoPath: string): Promise<string> {
   const git = createGit(repoPath);
   const status = await git.status();
   return status.current || '';
+}
+
+/**
+ * Get repository's default branch
+ *
+ * This is the branch that the remote HEAD points to (e.g., 'main', 'master', 'develop').
+ * Uses git symbolic-ref to determine the default branch accurately.
+ *
+ * @param repoPath - Path to repository
+ * @param remote - Remote name (default: 'origin')
+ * @returns Default branch name (e.g., 'main')
+ */
+export async function getDefaultBranch(
+  repoPath: string,
+  remote: string = 'origin'
+): Promise<string> {
+  const git = createGit(repoPath);
+
+  try {
+    // Try to get symbolic ref from remote HEAD
+    const result = await git.raw(['symbolic-ref', `refs/remotes/${remote}/HEAD`]);
+    // Output format: "refs/remotes/origin/main"
+    const match = result.trim().match(/refs\/remotes\/[^/]+\/(.+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch {
+    // Symbolic ref might not be set, fall back to checking current branch
+  }
+
+  // Fallback: use current branch
+  try {
+    const branches = await git.branch();
+    return branches.current || 'main';
+  } catch {
+    // Last resort fallback
+    return 'main';
+  }
 }
 
 /**

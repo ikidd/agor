@@ -13,7 +13,7 @@ export interface RepoReferenceOption {
   /** Display label (e.g., "anthropics/agor:main" or "/Users/max/code/agor") */
   label: string;
 
-  /** Reference value (same as label, used for config) */
+  /** ID value for selection (repo_id or worktree_id) */
   value: string;
 
   /** Reference type */
@@ -64,7 +64,7 @@ export function getRepoReferenceOptions(
     // Add bare repo option
     options.push({
       label: repo.slug,
-      value: repo.slug,
+      value: repo.repo_id, // Use repo_id as value
       type: 'managed',
       slug: repo.slug,
       description: `${repo.name} (bare repo)`,
@@ -79,7 +79,7 @@ export function getRepoReferenceOptions(
     const reference = `${repo.slug}:${worktree.name}`;
     options.push({
       label: reference,
-      value: reference,
+      value: worktree.worktree_id, // Use worktree_id as value
       type: 'managed-worktree',
       slug: repo.slug,
       worktree: worktree.name,
@@ -125,7 +125,7 @@ export function getGroupedRepoReferenceOptions(
     // Add bare repo option
     options.push({
       label: repo.slug,
-      value: repo.slug,
+      value: repo.repo_id, // Use repo_id as value
       type: 'managed',
       slug: repo.slug,
       description: `${repo.name} (bare repo)`,
@@ -146,7 +146,7 @@ export function getGroupedRepoReferenceOptions(
 
     grouped[repo.slug].push({
       label: reference,
-      value: reference,
+      value: worktree.worktree_id, // Use worktree_id as value
       type: 'managed-worktree',
       slug: repo.slug,
       worktree: worktree.name,

@@ -440,7 +440,7 @@ export async function seedInitialData(db: Database): Promise<void> {
             description: 'Default board for all sessions',
             sessions: [],
             color: '#1677ff',
-            icon: 'star',
+            icon: '⭐',
           })}
         )
       `);

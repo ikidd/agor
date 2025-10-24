@@ -316,7 +316,7 @@ export class BoardRepository implements BaseRepository<Board, Partial<Board>> {
         slug: 'default',
         description: 'Default board for all sessions',
         color: '#1677ff',
-        icon: 'star',
+        icon: '⭐',
       });
     } catch (error) {
       throw new RepositoryError(

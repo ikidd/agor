@@ -224,8 +224,6 @@ This document catalogues all important TypeScript types defined across the Agor 
 
 **Location:** `packages/core/src/db/schema.ts`
 
-**Alternative:** `packages/drizzle-schema/src/schema.ts` (if using separate package)
-
 **See also:** `context/concepts/architecture.md` (database design)
 
 ---

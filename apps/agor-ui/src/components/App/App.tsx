@@ -312,6 +312,9 @@ export const App: React.FC<AppProps> = ({
         // biome-ignore lint/suspicious/noExplicitAny: AgenticToolOption vs AgenticTool ID type mismatch
         availableAgents={availableAgents as any}
         worktreeOptions={worktreeOptions}
+        worktrees={worktrees}
+        repoOptions={repoOptions}
+        repos={repos}
         mcpServers={mcpServers}
       />
       <SessionDrawer

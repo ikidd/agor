@@ -130,6 +130,8 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
       createBranch?: boolean;
       pullLatest?: boolean;
       sourceBranch?: string;
+      issue_url?: string;
+      pull_request_url?: string;
     },
     params?: RepoParams
   ): Promise<Worktree> {
@@ -173,6 +175,8 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
       worktree_unique_id: worktreeUniqueId,
       sessions: [],
       last_used: new Date().toISOString(),
+      issue_url: data.issue_url,
+      pull_request_url: data.pull_request_url,
     }) as Promise<Worktree>;
   }
 }

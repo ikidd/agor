@@ -81,7 +81,7 @@ async function main() {
     console.log('');
     console.log('Next steps:');
     console.log('  - Run `npm run db:studio` to open Drizzle Studio');
-    console.log('  - Import repositories from @agor/drizzle-schema');
+    console.log('  - Import repositories from @agor/core/db');
     console.log('');
 
     process.exit(0);

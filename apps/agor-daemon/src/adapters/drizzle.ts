@@ -2,7 +2,7 @@
  * Custom Drizzle Adapter for FeathersJS
  *
  * Lightweight adapter that bridges FeathersJS service interface with Drizzle ORM.
- * Uses the repository pattern from @agor/drizzle-schema for type-safe database operations.
+ * Uses the repository pattern from @agor/core/db for type-safe database operations.
  */
 
 import type { Id, NullableId, Paginated, Params } from '@agor/core/types';

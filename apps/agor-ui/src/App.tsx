@@ -252,40 +252,87 @@ function AppContent() {
   // Handle session creation
   // biome-ignore lint/suspicious/noExplicitAny: Config type from AgorApp component props
   const handleCreateSession = async (config: any, boardId: string) => {
-    const session = await createSession(config);
-    if (session) {
-      // Add session to the current board using custom endpoint
-      try {
-        await client?.service(`boards/${boardId}/sessions`).create({
-          sessionId: session.session_id,
+    try {
+      let worktree_id = config.worktree_id;
+
+      // If creating a new worktree, create it first (with URLs included)
+      if (config.worktreeMode === 'new' && config.newWorktree) {
+        message.loading({ content: 'Creating worktree...', key: 'create-worktree', duration: 0 });
+
+        // Create the worktree with all metadata (URLs passed to backend)
+        await handleCreateWorktree(config.newWorktree.repoId, {
+          name: config.newWorktree.name,
+          ref: config.newWorktree.ref,
+          createBranch: config.newWorktree.createBranch,
+          sourceBranch: config.newWorktree.sourceBranch,
+          pullLatest: config.newWorktree.pullLatest,
+          issue_url: config.newWorktree.issue_url,
+          pull_request_url: config.newWorktree.pull_request_url,
         });
 
-        // Associate MCP servers if provided
-        if (config.mcpServerIds && config.mcpServerIds.length > 0) {
-          for (const serverId of config.mcpServerIds) {
-            try {
-              await client?.service(`sessions/${session.session_id}/mcp-servers`).create({
-                mcpServerId: serverId,
-              });
-            } catch (error) {
-              console.error(`Failed to associate MCP server ${serverId}:`, error);
+        message.success({ content: 'Worktree created!', key: 'create-worktree' });
+
+        // Find the newly created worktree to get its ID
+        // Note: This relies on local state being updated via WebSocket
+        const newWorktree = worktrees.find(
+          w => w.repo_id === config.newWorktree.repoId && w.name === config.newWorktree.name
+        );
+
+        if (newWorktree) {
+          worktree_id = newWorktree.worktree_id;
+        } else {
+          throw new Error('Failed to find newly created worktree');
+        }
+      }
+
+      if (!worktree_id) {
+        throw new Error('Worktree ID is required to create a session');
+      }
+
+      // Create the session with the worktree_id
+      const session = await createSession({
+        ...config,
+        worktree_id,
+      });
+
+      if (session) {
+        // Add session to the current board using custom endpoint
+        try {
+          await client?.service(`boards/${boardId}/sessions`).create({
+            sessionId: session.session_id,
+          });
+
+          // Associate MCP servers if provided
+          if (config.mcpServerIds && config.mcpServerIds.length > 0) {
+            for (const serverId of config.mcpServerIds) {
+              try {
+                await client?.service(`sessions/${session.session_id}/mcp-servers`).create({
+                  mcpServerId: serverId,
+                });
+              } catch (error) {
+                console.error(`Failed to associate MCP server ${serverId}:`, error);
+              }
             }
           }
-        }
 
-        message.success('Session created and added to board!');
+          message.success('Session created and added to board!');
 
-        // If there's an initial prompt, send it to the agent
-        if (config.initialPrompt?.trim()) {
-          await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
+          // If there's an initial prompt, send it to the agent
+          if (config.initialPrompt?.trim()) {
+            await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
+          }
+        } catch (error) {
+          message.error(
+            `Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
-      } catch (error) {
-        message.error(
-          `Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`
-        );
+      } else {
+        message.error('Failed to create session');
       }
-    } else {
-      message.error('Failed to create session');
+    } catch (error) {
+      message.error(
+        `Failed to create session: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   };
 
