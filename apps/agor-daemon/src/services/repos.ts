@@ -132,6 +132,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
       sourceBranch?: string;
       issue_url?: string;
       pull_request_url?: string;
+      boardId?: string;
     },
     params?: RepoParams
   ): Promise<Worktree> {
@@ -165,7 +166,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
     const worktreeUniqueId = autoAssignWorktreeUniqueId(existingWorktrees);
 
     // Create worktree record in database using the service (broadcasts WebSocket event)
-    return worktreesService.create({
+    const worktree = (await worktreesService.create({
       repo_id: repo.repo_id,
       name: data.name,
       path: worktreePath,
@@ -177,7 +178,20 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
       last_used: new Date().toISOString(),
       issue_url: data.issue_url,
       pull_request_url: data.pull_request_url,
-    }) as Promise<Worktree>;
+      board_id: data.boardId, // Optional: assign to board
+    })) as Worktree;
+
+    // If boardId provided, create board_object to position worktree on board
+    if (data.boardId) {
+      const boardObjectsService = this.app.service('board-objects');
+      await boardObjectsService.create({
+        board_id: data.boardId,
+        worktree_id: worktree.worktree_id,
+        position: { x: 100, y: 100 }, // Default position, user can drag to reposition
+      });
+    }
+
+    return worktree;
   }
 }
 

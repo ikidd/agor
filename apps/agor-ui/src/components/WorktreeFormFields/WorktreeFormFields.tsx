@@ -6,12 +6,13 @@
  * - WorktreesTable (create standalone worktree)
  */
 
-import type { Repo } from '@agor/core/types';
+import type { Board, Repo } from '@agor/core/types';
 import { Checkbox, Form, Input, Select, Space, Typography } from 'antd';
 import { useState } from 'react';
 
 export interface WorktreeFormFieldsProps {
   repos: Repo[];
+  boards?: Board[];
   selectedRepoId: string | null;
   onRepoChange: (repoId: string) => void;
   defaultBranch: string;
@@ -19,6 +20,8 @@ export interface WorktreeFormFieldsProps {
   fieldPrefix?: string;
   /** Show URL fields for issue/PR tracking */
   showUrlFields?: boolean;
+  /** Show board selector */
+  showBoardSelector?: boolean;
   /** Callback when form values change */
   onFormChange?: () => void;
   /** Controlled checkbox state */
@@ -29,11 +32,13 @@ export interface WorktreeFormFieldsProps {
 
 export const WorktreeFormFields: React.FC<WorktreeFormFieldsProps> = ({
   repos,
+  boards = [],
   selectedRepoId,
   onRepoChange,
   defaultBranch,
   fieldPrefix = '',
   showUrlFields = false,
+  showBoardSelector = false,
   onFormChange,
   useSameBranchName: controlledUseSameBranchName,
   onUseSameBranchNameChange,
@@ -76,6 +81,28 @@ export const WorktreeFormFields: React.FC<WorktreeFormFieldsProps> = ({
           onChange={onRepoChange}
         />
       </Form.Item>
+
+      {showBoardSelector && (
+        <Form.Item
+          name={`${fieldPrefix}boardId`}
+          label="Board (optional)"
+          tooltip="Add this worktree to a board for organization"
+        >
+          <Select
+            placeholder="Select board (optional)..."
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={boards.map(board => ({
+              value: board.board_id,
+              label: `${board.icon || '📋'} ${board.name}`,
+            }))}
+            onChange={onFormChange}
+          />
+        </Form.Item>
+      )}
 
       <Form.Item
         name={`${fieldPrefix}sourceBranch`}

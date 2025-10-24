@@ -23,6 +23,7 @@ import { WorktreeFormFields } from '../WorktreeFormFields';
 interface WorktreesTableProps {
   worktrees: Worktree[];
   repos: Repo[];
+  boards: import('@agor/core/types').Board[];
   sessions: Session[];
   onDelete?: (worktreeId: string, deleteFromFilesystem: boolean) => void;
   onCreate?: (
@@ -33,6 +34,7 @@ interface WorktreesTableProps {
       createBranch: boolean;
       sourceBranch: string;
       pullLatest: boolean;
+      boardId?: string;
     }
   ) => void;
   onRowClick?: (worktree: Worktree) => void;
@@ -43,6 +45,7 @@ interface WorktreesTableProps {
 export const WorktreesTable: React.FC<WorktreesTableProps> = ({
   worktrees,
   repos,
+  boards,
   sessions,
   onDelete,
   onCreate,
@@ -153,6 +156,7 @@ export const WorktreesTable: React.FC<WorktreesTableProps> = ({
         createBranch: true, // Always create new branch based on source branch
         sourceBranch: values.sourceBranch,
         pullLatest: true, // Always fetch latest before creating worktree
+        boardId: values.boardId, // Optional: add to board
       });
       setCreateModalOpen(false);
       form.resetFields();
@@ -408,9 +412,11 @@ export const WorktreesTable: React.FC<WorktreesTableProps> = ({
         <Form form={form} layout="vertical" onFieldsChange={validateForm}>
           <WorktreeFormFields
             repos={repos}
+            boards={boards}
             selectedRepoId={selectedRepoId}
             onRepoChange={handleRepoChange}
             defaultBranch={getDefaultBranch()}
+            showBoardSelector={true}
             onFormChange={validateForm}
             useSameBranchName={useSameBranchName}
             onUseSameBranchNameChange={setUseSameBranchName}

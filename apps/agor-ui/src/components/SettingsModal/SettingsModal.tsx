@@ -151,6 +151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <WorktreesTable
                 worktrees={worktrees}
                 repos={repos}
+                boards={boards}
                 sessions={sessions}
                 onDelete={onDeleteWorktree}
                 onCreate={onCreateWorktree}
