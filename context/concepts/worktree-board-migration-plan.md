@@ -1,6 +1,6 @@
 # Worktree-Centric Board Migration Plan
 
-**Status:** Phase 0 & 1 Complete ✅
+**Status:** Phase 0, 1, & 2 Complete ✅
 **Date:** 2025-10-24
 **Context:** Shift from session-centric to worktree-centric boards
 
@@ -187,47 +187,6 @@ Located: `apps/agor-daemon/src/services/worktrees.ts`
 
 ---
 
-## Phase 2: Zone Trigger Updates
-
-**Goal:** Zones trigger worktrees (not sessions) with modal flow
-
-### Update Zone Schema
-
-```typescript
-// packages/core/src/types/board.ts
-
-export interface Zone {
-  zone_id: string;
-  board_id: BoardID;
-  name: string;
-  color: string;
-  bounds: { x: number; y: number; width: number; height: number };
-
-  // Trigger config
-  trigger?: {
-    template: string; // Handlebars template
-
-    // NEW: Binary behavior setting
-    behavior: 'always_new' | 'show_picker'; // Default: 'show_picker'
-  };
-}
-```
-
-### Zone Trigger Flow (See worktree-board-design.md)
-
-**Behavior 1: "always_new"**
-
-- Drop worktree → Create new root session → Apply trigger
-
-**Behavior 2: "show_picker"** (default)
-
-- Drop worktree → Open ZoneTriggerModal
-  - Step 1: Select session (smart default)
-  - Step 2: Choose action (Prompt/Fork/Spawn)
-  - Apply trigger
-
----
-
 ## Phase 1.5: Additional Features ✅ COMPLETE
 
 **NewWorktreeModal:** ✅ Implemented
@@ -314,18 +273,180 @@ Located: `apps/agor-ui/src/components/NewSessionModal/NewSessionModal.tsx`
 
 ---
 
-## Phase 2: Zone Trigger Updates (Future)
+## Phase 2: Zone Trigger Updates ✅ COMPLETE
 
 **Goal:** Zones trigger worktrees (not sessions) with modal flow
 
-**Status:** Not yet started
+**Status:** Complete
 
-### Planned Features
+### Zone Schema Updates ✅
 
-- [ ] Update Zone schema with trigger configuration
-- [ ] Implement ZoneTriggerModal (two-step flow)
-- [ ] Smart default session selection logic
-- [ ] Template expansion with worktree context
+**ZoneTrigger Interface:**
+
+```typescript
+// packages/core/src/types/board.ts
+export type ZoneTriggerBehavior = 'always_new' | 'show_picker';
+
+export interface ZoneTrigger {
+  template: string; // Handlebars template (changed from 'text')
+  behavior: ZoneTriggerBehavior; // Changed from 'type'
+}
+```
+
+**BoardEntityObject Zone Pinning:**
+
+```typescript
+export interface BoardEntityObject {
+  object_id: string;
+  board_id: BoardID;
+  worktree_id: WorktreeID;
+  position: { x: number; y: number };
+  zone_id?: string; // NEW: for zone pinning
+  created_at: string;
+}
+```
+
+**Implementation Notes:**
+
+- ✅ Zone triggers use Handlebars templates for dynamic prompt generation
+- ✅ Two behavior modes: `always_new` (auto-create) and `show_picker` (modal)
+- ✅ Worktrees can be pinned to zones via `zone_id` field
+- ✅ Coordinate conversion handles relative (pinned) vs absolute (unpinned) positions
+
+### ZoneTriggerModal Implementation ✅
+
+Located: `apps/agor-ui/src/components/SessionCanvas/canvas/ZoneTriggerModal.tsx`
+
+**Two-Step Flow:**
+
+1. **Primary Choice:** Create new session OR Reuse existing session
+2. **Configuration:**
+   - Create new: Agent selection + agentic tool config (collapsible)
+   - Reuse: Session selection + action selection (Prompt/Fork/Spawn)
+
+**Smart Default Session Selection:**
+
+- Prioritizes running sessions first (most recently updated)
+- Falls back to most recent session if no running sessions
+- Pre-selects for instant execution
+
+```typescript
+const smartDefaultSession = useMemo(() => {
+  if (worktreeSessions.length === 0) return '';
+
+  // Prioritize running sessions
+  const runningSessions = worktreeSessions.filter(s => s.status === 'running');
+  if (runningSessions.length > 0) {
+    return runningSessions.sort(
+      (a, b) =>
+        new Date(b.updated_at || b.created_at).getTime() -
+        new Date(a.updated_at || a.created_at).getTime()
+    )[0].session_id;
+  }
+
+  // Otherwise most recent session
+  return worktreeSessions.sort(/*by date*/)[0].session_id;
+}, [worktreeSessions]);
+```
+
+**Agent Selection:**
+
+- 2-per-row grid layout with AgentSelectionCard components
+- Collapsible "Agentic Tool Configuration" section (AgenticToolConfigForm)
+- Permission mode, model config, and MCP server selection
+
+**Template Expansion:**
+
+- Handlebars rendering with worktree/board/session context
+- Live preview of rendered prompt
+- Context includes: worktree metadata, board custom context, session data
+
+### Zone Pinning Implementation ✅
+
+Located: `apps/agor-ui/src/components/SessionCanvas/SessionCanvas.tsx`
+
+**Drop Detection:**
+
+```typescript
+const findIntersectingZone = (position: { x: number; y: number }) => {
+  return currentBoard.zones.find(
+    zone =>
+      position.x >= zone.bounds.x &&
+      position.x <= zone.bounds.x + zone.bounds.width &&
+      position.y >= zone.bounds.y &&
+      position.y <= zone.bounds.y + zone.bounds.height
+  );
+};
+```
+
+**Coordinate Conversion:**
+
+- **Pinning:** Absolute → Relative (subtract zone origin)
+- **Unpinning:** Relative → Absolute (add zone origin)
+- React Flow extent constraint keeps pinned worktrees inside zones
+
+**Visual Indicators:**
+
+- Pinned worktrees show zone name tag with PushpinFilled icon
+- Zone border color applied to card when pinned
+- Click tag to unpin
+
+### NewSessionModal Simplification ✅
+
+Located: `apps/agor-ui/src/components/NewSessionModal/NewSessionModal.tsx`
+
+**Simplified from ~500 lines to ~200 lines:**
+
+- ✅ Removed ALL worktree selection/creation UI
+- ✅ Sessions always created from existing worktrees
+- ✅ Required `worktreeId` prop (no selection needed)
+- ✅ Optional `worktree` prop for display metadata
+- ✅ Ant Design Alert component for worktree info banner
+- ✅ 2-per-row agent selection grid layout
+
+**New Interface:**
+
+```typescript
+export interface NewSessionConfig {
+  worktree_id: string; // Required - sessions always from worktree
+  agent: string;
+  title?: string;
+  initialPrompt?: string;
+  modelConfig?: ModelConfig;
+  mcpServerIds?: string[];
+  permissionMode?: string;
+}
+```
+
+### WorktreeCard Improvements ✅
+
+- ✅ "New Session" button more prominent (type="default" with text label)
+- ✅ Always visible in collapse header when sessions exist
+- ✅ Primary button in empty state when no sessions
+- ✅ Consistent UX between empty and populated states
+
+### Bug Fixes ✅
+
+- ✅ Fixed `Typography.TextArea` → `Input.TextArea` (SessionDrawer, MCPServersTable)
+- ✅ Fixed SessionListDrawer to filter through worktrees instead of Board.sessions
+- ✅ Fixed BoardsTable to calculate session counts through worktrees
+- ✅ Fixed board-objects find() to return all objects (was returning empty on reload)
+
+### Behavior Implementation ✅
+
+**"always_new" Behavior:**
+
+- Drop worktree on zone → Immediately create new session → Send templated prompt
+- No modal, instant execution
+- (Not currently wired in UI, but schema/backend ready)
+
+**"show_picker" Behavior:** (Default)
+
+- Drop worktree on zone → Open ZoneTriggerModal
+- User chooses: create new OR reuse existing
+- If reuse: choose session + action (Prompt/Fork/Spawn)
+- Template rendered with full context
+- Execute trigger with selected configuration
 
 ---
 
@@ -577,26 +698,27 @@ async function moveWorktreeToBoard(worktreeId: WorktreeID, targetBoardId: BoardI
 
 ## Summary
 
-**This is less scary than it seems!** We're adding worktree-centric boards alongside existing session-based boards, not replacing them immediately.
+**Phase 0-2 Complete! 🎉** Worktree-centric boards are fully functional with zone triggers, pinning, and streamlined session creation.
 
-**Key Decisions:**
+**Completed Work:**
 
 1. ✅ Worktrees belong to ONE board (not many) via `board_id`
 2. ✅ Sessions MUST have worktrees (NOT NULL FK, CASCADE on delete)
-3. ✅ Hybrid mode: Support both session AND worktree cards (gradual migration)
-4. ✅ Zones trigger worktrees → modal → session selection
-5. ✅ Sessions accessed through worktree cards (genealogy tree)
-6. ✅ Deprecate session cards eventually (not immediately)
+3. ✅ Worktree-only boards (skipped hybrid dual-card system)
+4. ✅ Zones trigger worktrees → ZoneTriggerModal → session selection
+5. ✅ Sessions accessed through worktree cards (collapsible session list)
+6. ✅ Zone pinning with coordinate conversion
+7. ✅ NewSessionModal simplified (worktree-centric, no selection UI)
+8. ✅ Smart default session selection (prioritizes running sessions)
+9. ✅ Handlebars template expansion with worktree/board/session context
 
-**Next Steps:**
+**What's Remaining (Phase 3 & 4):**
 
-1. Add `board_id` column to worktrees table
-2. Update Worktree type
-3. Implement WorktreeCard component
-4. Support dual card types in BoardCanvas
-5. Ship hybrid mode, gather feedback, iterate
+1. Migration wizard for existing session-based boards (if any exist)
+2. Deprecation warnings for legacy workflows
+3. Optional cleanup and refinement
 
-**Philosophy:** Layer it in, don't rip and replace. Gradual migration > big bang.
+**Philosophy:** We successfully layered it in without breaking existing functionality. The worktree-centric model is now the default.
 
 ---
 
