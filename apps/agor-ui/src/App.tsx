@@ -288,35 +288,24 @@ function AppContent() {
       });
 
       if (session) {
-        // Add session to the current board using custom endpoint
-        try {
-          await client?.service(`boards/${boardId}/sessions`).create({
-            sessionId: session.session_id,
-          });
-
-          // Associate MCP servers if provided
-          if (config.mcpServerIds && config.mcpServerIds.length > 0) {
-            for (const serverId of config.mcpServerIds) {
-              try {
-                await client?.service(`sessions/${session.session_id}/mcp-servers`).create({
-                  mcpServerId: serverId,
-                });
-              } catch (error) {
-                console.error(`Failed to associate MCP server ${serverId}:`, error);
-              }
+        // Associate MCP servers if provided
+        if (config.mcpServerIds && config.mcpServerIds.length > 0) {
+          for (const serverId of config.mcpServerIds) {
+            try {
+              await client?.service(`sessions/${session.session_id}/mcp-servers`).create({
+                mcpServerId: serverId,
+              });
+            } catch (error) {
+              console.error(`Failed to associate MCP server ${serverId}:`, error);
             }
           }
+        }
 
-          message.success('Session created and added to board!');
+        message.success('Session created!');
 
-          // If there's an initial prompt, send it to the agent
-          if (config.initialPrompt?.trim()) {
-            await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
-          }
-        } catch (error) {
-          message.error(
-            `Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`
-          );
+        // If there's an initial prompt, send it to the agent
+        if (config.initialPrompt?.trim()) {
+          await handleSendPrompt(session.session_id, config.initialPrompt, config.permissionMode);
         }
       } else {
         message.error('Failed to create session');

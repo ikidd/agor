@@ -15,7 +15,7 @@ import type {
 } from '@agor/core/types';
 import { PermissionScope } from '@agor/core/types';
 import { Layout } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePresence } from '../../hooks/usePresence';
 import { AppHeader } from '../AppHeader';
 import type { ModelConfig } from '../ModelSelector';
@@ -39,6 +39,7 @@ import SessionDrawer from '../SessionDrawer';
 import { SessionSettingsModal } from '../SessionSettingsModal';
 import { SettingsModal } from '../SettingsModal';
 import { TerminalModal } from '../TerminalModal';
+import { WorktreeListDrawer } from '../WorktreeListDrawer';
 import { WorktreeModal } from '../WorktreeModal';
 
 const { Content } = Layout;
@@ -138,12 +139,36 @@ export const App: React.FC<AppProps> = ({
   const [newSessionWorktreeId, setNewSessionWorktreeId] = useState<string | null>(null);
   const [newWorktreeModalOpen, setNewWorktreeModalOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [listDrawerOpen, setListDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalCommands, setTerminalCommands] = useState<string[]>([]);
   const [sessionSettingsId, setSessionSettingsId] = useState<string | null>(null);
   const [worktreeModalWorktreeId, setWorktreeModalWorktreeId] = useState<string | null>(null);
-  const [currentBoardId, setCurrentBoardId] = useState(initialBoardId || boards[0]?.board_id || '');
+
+  // Initialize current board from localStorage or fallback to first board or initialBoardId
+  const [currentBoardId, setCurrentBoardId] = useState(() => {
+    const stored = localStorage.getItem('agor:currentBoardId');
+    if (stored && boards.some(b => b.board_id === stored)) {
+      return stored;
+    }
+    return initialBoardId || boards[0]?.board_id || '';
+  });
+
+  // Persist current board to localStorage when it changes
+  useEffect(() => {
+    if (currentBoardId) {
+      localStorage.setItem('agor:currentBoardId', currentBoardId);
+    }
+  }, [currentBoardId]);
+
+  // If the stored board no longer exists (e.g., deleted), fallback to first board
+  useEffect(() => {
+    if (currentBoardId && !boards.some(b => b.board_id === currentBoardId)) {
+      const fallback = boards[0]?.board_id || '';
+      setCurrentBoardId(fallback);
+    }
+  }, [boards, currentBoardId]);
 
   const handleOpenTerminal = (commands: string[] = []) => {
     setTerminalCommands(commands);
@@ -318,6 +343,7 @@ export const App: React.FC<AppProps> = ({
         user={user}
         activeUsers={allActiveUsers}
         currentUserId={user?.user_id}
+        onMenuClick={() => setListDrawerOpen(true)}
         onSettingsClick={() => setSettingsOpen(true)}
         onTerminalClick={() => handleOpenTerminal()}
         onLogout={onLogout}
@@ -450,6 +476,16 @@ export const App: React.FC<AppProps> = ({
           setWorktreeModalWorktreeId(null);
           setSettingsOpen(true);
         }}
+      />
+      <WorktreeListDrawer
+        open={listDrawerOpen}
+        onClose={() => setListDrawerOpen(false)}
+        boards={boards}
+        currentBoardId={currentBoardId}
+        onBoardChange={setCurrentBoardId}
+        sessions={sessions}
+        worktrees={worktrees}
+        onSessionClick={setSelectedSessionId}
       />
       <TerminalModal
         open={terminalOpen}
