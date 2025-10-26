@@ -27,6 +27,7 @@ import { MessageRole, PermissionStatus, TaskStatus } from '../../types';
 import type { SessionsService, TasksService } from './claude-tool';
 import { SDKMessageProcessor } from './message-processor';
 import { DEFAULT_CLAUDE_MODEL } from './models';
+import { appendSessionContextToCLAUDEmd } from './session-context';
 
 /**
  * Get path to Claude Code executable
@@ -474,6 +475,10 @@ export class ClaudePromptService {
       } catch (listError) {
         console.warn(`⚠️  Could not list directory contents:`, listError);
       }
+
+      // Append Agor session context to CLAUDE.md
+      // This makes the agent aware of its session ID
+      await appendSessionContextToCLAUDEmd(cwd, sessionId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`❌ Working directory validation failed: ${errorMessage}`);
@@ -617,6 +622,33 @@ export class ClaudePromptService {
       // -> options.resume not set, SDK will start fresh and return new session ID
     }
 
+    // Configure Agor MCP server (self-access to daemon)
+    const mcpToken = session.mcp_token;
+    console.log(`🔍 [MCP DEBUG] Checking for MCP token in session ${sessionId.substring(0, 8)}`);
+    console.log(
+      `   session.mcp_token: ${mcpToken ? `${mcpToken.substring(0, 16)}...` : 'NOT FOUND'}`
+    );
+
+    if (mcpToken) {
+      // Get daemon URL from config (default: http://localhost:3030)
+      const daemonUrl = process.env.VITE_DAEMON_URL || 'http://localhost:3030';
+
+      console.log(`🔌 Configuring Agor MCP server (self-access to daemon)`);
+      const mcpConfig = {
+        agor: {
+          name: 'agor',
+          type: 'http' as const,
+          url: `${daemonUrl}/mcp?sessionToken=${mcpToken}`,
+        },
+      };
+      options.mcpServers = mcpConfig;
+      console.log(`   MCP server config:`, JSON.stringify(mcpConfig, null, 2));
+      console.log(`   Full URL: ${daemonUrl}/mcp?sessionToken=${mcpToken.substring(0, 16)}...`);
+    } else {
+      console.warn(`⚠️  No MCP token found for session ${sessionId.substring(0, 8)}`);
+      console.warn(`   Session will not have access to Agor MCP tools`);
+    }
+
     // Fetch and configure MCP servers for this session (hierarchical scoping)
     // NOTE: Currently disabled for testing session resumption
     // biome-ignore lint/correctness/noConstantCondition: Temporarily disabled for testing
@@ -756,6 +788,10 @@ export class ClaudePromptService {
     console.log('📤 Calling query() with:');
     console.log(`   prompt: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
     console.log(`   options keys: ${Object.keys(options).join(', ')}`);
+    console.log(
+      `   🔍 [MCP DEBUG] options.mcpServers:`,
+      options.mcpServers ? JSON.stringify(options.mcpServers, null, 2) : 'NOT SET'
+    );
     console.log(
       `   Full query call:`,
       JSON.stringify(

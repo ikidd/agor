@@ -17,6 +17,8 @@ graph TB
     subgraph "Agor Daemon"
         Feathers["<b>FeathersJS Server</b>"]
 
+        MCP["<b>MCP HTTP Endpoint</b><br/>POST /mcp?sessionToken=..."]
+
         Services["<b>Services</b><br/>Sessions, Tasks, Messages<br/>Boards, Worktrees, Repos<br/>Users, MCP, Context, Health"]
 
         AgentSDKs["<b>Agent SDKs</b><br/>Claude, Codex, Gemini"]
@@ -37,8 +39,11 @@ graph TB
     Client <-->|REST + WebSocket| Feathers
 
     Feathers --> Services
+    Feathers --> MCP
+    MCP --> Services
     Services --> ORM
     Services --> AgentSDKs
+    AgentSDKs -.->|JSON-RPC 2.0| MCP
 
     ORM --> DB
     Services --> Git
@@ -118,6 +123,94 @@ The daemon exposes 12 FeathersJS services via REST and WebSocket:
 | **context** | Context file browser | Read-only access to context/ files |
 | **terminals** | WebSocket terminal proxy | PTY sessions for live terminals |
 | **health-monitor** | Real-time diagnostics | System health, connection status |
+
+## MCP Integration: Self-Aware Agents
+
+Agor exposes itself as a **Model Context Protocol (MCP) server**, enabling agents to introspect and manipulate their own environment.
+
+### Why MCP?
+
+Instead of parsing CLI output:
+```bash
+# ❌ Brittle approach
+$ agor session list | grep running | wc -l
+```
+
+Agents use **structured MCP tools** with typed responses:
+```typescript
+// ✅ Structured approach
+→ agor_sessions_list({ status: 'running' })
+← { total: 3, data: [...] }
+```
+
+### HTTP Transport
+
+**Endpoint:** `POST /mcp?sessionToken={token}`
+**Protocol:** JSON-RPC 2.0
+
+Each session gets a unique token on creation (24h expiration), automatically injected into the agent's MCP config:
+
+```typescript
+mcpServers: {
+  agor: {
+    type: 'http',
+    url: 'http://localhost:3030/mcp?sessionToken=cd5fc175...'
+  }
+}
+```
+
+### Available Tools (First Batch - Read-Only)
+
+| Tool | Description | Example |
+|------|-------------|---------|
+| `agor_sessions_list` | List sessions with filters | `{ status: 'running', boardId: '...' }` |
+| `agor_sessions_get` | Get specific session details | `{ sessionId: '01933e4a...' }` |
+| `agor_sessions_get_current` | Get current session (introspection) | `{}` |
+| `agor_worktrees_get` | Get worktree details | `{ worktreeId: '...' }` |
+| `agor_worktrees_list` | List all worktrees | `{ limit: 10 }` |
+| `agor_boards_get` | Get board by ID | `{ boardId: '...' }` |
+| `agor_boards_list` | List all boards | `{}` |
+| `agor_tasks_list` | List tasks in session | `{ sessionId: '...' }` |
+| `agor_tasks_get` | Get specific task | `{ taskId: '...' }` |
+
+### Example Agent Workflow
+
+```
+User: "What other sessions are running on this board?"
+
+Agent thinking:
+→ agor_sessions_get_current()
+← { session_id: "019a1...", board_id: "019a2...", status: "running" }
+
+→ agor_sessions_list({ boardId: "019a2...", status: "running" })
+← { total: 3, data: [
+    { session_id: "019a3...", agentic_tool: "claude-code", title: "Schema design" },
+    { session_id: "019a4...", agentic_tool: "claude-code", title: "API implementation" }
+  ]}
+
+Agent: "There are 2 other sessions running on this board:
+       - Session 019a3... (Claude Code, schema design)
+       - Session 019a4... (Claude Code, API implementation)"
+```
+
+### Service Layer Integration
+
+MCP tools route through **FeathersJS services** (not direct ORM) for:
+- ✅ Consistent business logic
+- ✅ Hook execution (validation, auth)
+- ✅ Future RBAC support
+- ✅ Cross-database compatibility
+
+### Future: Write Operations (Second Batch)
+
+Planned tools for multi-agent orchestration:
+- `agor_sessions_create` - Create new session
+- `agor_sessions_spawn` - Spawn child session (subtask delegation!)
+- `agor_sessions_fork` - Fork session at specific point
+- `agor_boards_create` - Create new board
+- `agor_worktrees_create` - Create new worktree
+
+**This will enable fully autonomous multi-agent workflows.**
 
 ## Data Architecture
 

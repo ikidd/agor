@@ -72,6 +72,8 @@ export interface Session {
   agentic_tool_version?: string;
   /** SDK session ID for maintaining conversation history (Claude Agent SDK, Codex SDK, etc.) */
   sdk_session_id?: string;
+  /** MCP authentication token for Agor self-access */
+  mcp_token?: string;
   status: SessionStatus;
   created_at: string;
   last_updated: string;

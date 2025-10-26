@@ -397,6 +397,37 @@ async function main() {
         }) as any,
       ],
     },
+    after: {
+      create: [
+        async (context: HookContext<Session> & { result: Session }) => {
+          // Generate MCP session token for this session
+          const { generateSessionToken } = await import('./mcp/tokens.js');
+          const session = context.result;
+          const userId = session.created_by || 'anonymous';
+
+          const mcpToken = generateSessionToken(
+            userId as import('@agor/core/types').UserID,
+            session.session_id
+          );
+
+          console.log(
+            `🎫 MCP token for session ${session.session_id.substring(0, 8)}: ${mcpToken.substring(0, 16)}...`
+          );
+          console.log(`   Full token (for testing): ${mcpToken}`);
+
+          // Store token in session record
+          await app.service('sessions').patch(session.session_id, {
+            mcp_token: mcpToken,
+          });
+          console.log(`💾 Stored MCP token in session record`);
+
+          // Update context.result to include the token
+          context.result = { ...session, mcp_token: mcpToken };
+
+          return context;
+        },
+      ],
+    },
   });
 
   app.service('tasks').hooks({
@@ -1452,6 +1483,10 @@ async function main() {
       };
     },
   });
+
+  // Setup MCP routes
+  const { setupMCPRoutes } = await import('./mcp/routes.js');
+  setupMCPRoutes(app);
 
   // Error handling
   app.use(errorHandler());

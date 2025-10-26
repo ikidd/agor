@@ -10,11 +10,14 @@
     "dev:daemon-only": "tsx watch --clear-screen=false --ignore 'node_modules/**' src/index.ts ../../packages/core/dist",
     "start": "node dist/index.js",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@agor/core": "workspace:*",
     "@homebridge/node-pty-prebuilt-multiarch": "^0.13.1",
+    "@modelcontextprotocol/sdk": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -29,6 +32,7 @@
     "@types/node": "^22.10.2",
     "concurrently": "^9.2.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   }
 }

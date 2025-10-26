@@ -77,6 +77,7 @@ export class SessionRepository implements BaseRepository<Session, Partial<Sessio
       data: {
         agentic_tool_version: session.agentic_tool_version,
         sdk_session_id: session.sdk_session_id, // Preserve SDK session ID for conversation continuity
+        mcp_token: session.mcp_token, // MCP authentication token for Agor self-access
         title: session.title,
         description: session.description,
         git_state: session.git_state ?? {

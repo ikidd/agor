@@ -39,6 +39,7 @@ Simple todo list for launch preparation.
 - [ ] Concepts as first-class primitives (CRUD in UI/CLI)
 - [ ] Reports as first-class primitives (CRUD in UI/CLI)
 - [ ] `@`-triggered autocomplete for sessions/repos/concepts
+- [ ] add system prompt to Codex/Gemini for self-awareness
 
 ## Post-Launch (Future)
 

@@ -8,3 +8,4 @@ export * from './import/message-converter';
 export * from './import/task-extractor';
 export * from './import/transcript-parser';
 export * from './models';
+export * from './session-context';

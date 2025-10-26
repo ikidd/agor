@@ -160,11 +160,11 @@ export const useBoardObjects = ({
           type: 'zone',
           position: { x: objectData.x, y: objectData.y },
           draggable: true,
+          zIndex: 100, // Zones behind worktrees and comments
           className: eraserMode ? 'eraser-mode' : undefined,
           style: {
             width: objectData.width,
             height: objectData.height,
-            zIndex: -1, // Zones behind everything
           },
           data: {
             objectId,
@@ -204,10 +204,10 @@ export const useBoardObjects = ({
           type: 'zone',
           position: { x, y },
           draggable: true,
+          zIndex: 100, // Zones behind worktrees and comments
           style: {
             width,
             height,
-            zIndex: -1,
           },
           data: {
             objectId,

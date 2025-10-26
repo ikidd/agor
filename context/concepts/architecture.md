@@ -42,6 +42,14 @@ Agor is a **multi-client agent orchestration platform** with a clean separation 
 ┌─────────────────────▼──────────────────────────────────┐
 │         Feathers Server (agor-daemon)                  │
 │  ┌──────────────────────────────────────────────────┐ │
+│  │  MCP HTTP Endpoint (Self-Access for Agents)     │ │
+│  │  POST /mcp?sessionToken={token}                 │ │
+│  │  - JSON-RPC 2.0 protocol                        │ │
+│  │  - 9 introspection tools (sessions, boards...)  │ │
+│  │  - Token authentication (24h, in-memory cache)  │ │
+│  └──────────────────┬───────────────────────────────┘ │
+│                     │                                   │
+│  ┌──────────────────▼───────────────────────────────┐ │
 │  │  Services (Business Logic)                       │ │
 │  │  - SessionsService: CRUD + fork/spawn/genealogy │ │
 │  │  - BoardsService: CRUD + session management     │ │
@@ -560,6 +568,320 @@ This enables:
 - Full Claude Code CLI parity
 
 **Implementation status:** Disabled for now (messages-only mode)
+
+---
+
+## MCP Integration Layer
+
+### Overview
+
+Agor exposes itself as an **MCP (Model Context Protocol) server** to enable agents running within Agor to introspect and manipulate their own environment. This creates a "self-aware" agent system where Claude Code sessions can:
+
+- Query their own session state
+- List other sessions on the same board
+- Inspect worktrees and repositories
+- Review task history
+- (Future) Create new sessions, spawn subtasks, fork workflows
+
+**Key Insight:** Instead of agents parsing CLI output (`agor session list`), they use structured MCP tools with typed responses.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Claude Code Session (running in worktree)                  │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  Claude Agent SDK                                       │ │
+│  │  ┌──────────────────────────────────────────────────┐  │ │
+│  │  │  mcpServers: {                                    │  │ │
+│  │  │    agor: {                                        │  │ │
+│  │  │      type: 'http',                                │  │ │
+│  │  │      url: 'http://localhost:3030/mcp?sessionToken=...' │  │
+│  │  │    }                                              │  │ │
+│  │  │  }                                                │  │ │
+│  │  └──────────────────────────────────────────────────┘  │ │
+│  └───────────────────────────┬────────────────────────────┘ │
+└──────────────────────────────┼──────────────────────────────┘
+                               │ HTTP POST (JSON-RPC 2.0)
+                               │
+┌──────────────────────────────▼──────────────────────────────┐
+│  Agor Daemon (FeathersJS)                                   │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  POST /mcp (MCP HTTP Endpoint)                       │  │
+│  │  ┌────────────────────────────────────────────────┐  │  │
+│  │  │  1. Validate session token                      │  │  │
+│  │  │  2. Route JSON-RPC method                       │  │  │
+│  │  │     - initialize → handshake                    │  │  │
+│  │  │     - tools/list → return 9 tools               │  │  │
+│  │  │     - tools/call → execute tool                 │  │  │
+│  │  │  3. Call FeathersJS service                     │  │  │
+│  │  │  4. Return JSON-RPC response                    │  │  │
+│  │  └────────────────────────────────────────────────┘  │  │
+│  └─────────────────────┬────────────────────────────────┘  │
+│                        │                                    │
+│  ┌─────────────────────▼────────────────────────────────┐  │
+│  │  FeathersJS Services (Business Logic)                │  │
+│  │  - app.service('sessions').find()                    │  │
+│  │  - app.service('worktrees').get()                    │  │
+│  │  - app.service('boards').find()                      │  │
+│  │  - app.service('tasks').find()                       │  │
+│  └─────────────────────┬────────────────────────────────┘  │
+│                        │                                    │
+│  ┌─────────────────────▼────────────────────────────────┐  │
+│  │  Drizzle ORM → LibSQL Database                       │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### HTTP MCP Transport
+
+Unlike traditional MCP servers using stdio or SSE, Agor uses **HTTP transport** for simplicity:
+
+**Protocol:** JSON-RPC 2.0 over HTTP POST
+**Endpoint:** `POST /mcp?sessionToken={token}`
+**Content-Type:** `application/json`
+
+**Advantages:**
+
+- ✅ No process management (stdio requires spawning subprocesses)
+- ✅ Works with Claude Agent SDK's HTTP MCP support
+- ✅ Simple authentication via query param
+- ✅ Leverages existing daemon HTTP server
+- ✅ Easy to test with curl/fetch
+
+### Authentication Flow
+
+Each session gets a unique MCP token on creation:
+
+```typescript
+// 1. Session created
+const session = await app.service('sessions').create({ worktree_id, ... });
+
+// 2. Generate MCP token
+const mcpToken = randomBytes(32).toString('hex');
+
+// 3. Store in database
+await app.service('sessions').patch(session.session_id, {
+  mcp_token: mcpToken
+});
+
+// 4. Inject into Claude SDK config
+const sdkOptions = {
+  mcpServers: {
+    agor: {
+      type: 'http',
+      url: `http://localhost:3030/mcp?sessionToken=${mcpToken}`
+    }
+  }
+};
+```
+
+**Token validation:**
+
+- Fast path: In-memory cache (O(1) lookup)
+- Slow path: Database search (survives daemon restarts)
+- Expiration: 24 hours
+- Scope: Session-specific (agent can only access its own context)
+
+### MCP Tools (First Batch - Read-Only)
+
+**9 introspection tools** enable agents to understand their environment:
+
+| Tool                        | Description                | Returns                 |
+| --------------------------- | -------------------------- | ----------------------- |
+| `agor_sessions_list`        | List sessions with filters | Paginated sessions      |
+| `agor_sessions_get`         | Get specific session       | Full session object     |
+| `agor_sessions_get_current` | Get current session        | Current session context |
+| `agor_worktrees_get`        | Get worktree details       | Path, branch, git state |
+| `agor_worktrees_list`       | List all worktrees         | Paginated worktrees     |
+| `agor_boards_get`           | Get board by ID            | Board with zones        |
+| `agor_boards_list`          | List all boards            | Paginated boards        |
+| `agor_tasks_list`           | List tasks in session      | Paginated tasks         |
+| `agor_tasks_get`            | Get specific task          | Full task object        |
+
+**Example agent usage:**
+
+```
+User: "What other sessions are running on this board?"
+
+Agent: Let me check
+→ agor_sessions_get_current()
+← { board_id: "019a1...", ... }
+→ agor_sessions_list({ boardId: "019a1...", status: "running" })
+← { total: 2, data: [...] }
+
+Agent: "There are 2 other sessions running on this board:
+       - Session 019a2... (claude-code, schema design)
+       - Session 019a3... (claude-code, API implementation)"
+```
+
+### Service Layer Integration
+
+**Key Decision:** MCP tool handlers use **FeathersJS services**, not direct ORM access.
+
+```typescript
+// ✅ MCP tool implementation (routes.ts)
+if (name === 'agor_sessions_list') {
+  const query: Record<string, unknown> = {};
+  if (args?.limit) query.$limit = args.limit;
+  if (args?.status) query.status = args.status;
+
+  // Use service layer (goes through hooks, validation, RBAC)
+  const sessions = await app.service('sessions').find({
+    query,
+    provider: undefined, // Internal call, bypass external-only hooks
+  });
+
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(sessions, null, 2),
+      },
+    ],
+  };
+}
+```
+
+**Why service layer?**
+
+- ✅ Consistent with daemon architecture
+- ✅ Reuses existing DB connection
+- ✅ Hooks run (validation, business logic)
+- ✅ No SQL injection risk
+- ✅ Cross-database compatible
+- ✅ Future-proof (when we add RBAC)
+
+**Token validation exception:** Uses service layer too!
+
+```typescript
+// Token validation (tokens.ts)
+export async function validateSessionToken(
+  app: Application,
+  token: string
+): Promise<SessionTokenData | null> {
+  // Fast path: in-memory cache
+  const memoryData = tokenStore.get(token);
+  if (memoryData) return memoryData;
+
+  // Slow path: query sessions via service
+  const result = await app.service('sessions').find({
+    query: { $limit: 1000 },
+    provider: undefined, // Bypass external auth hooks
+  });
+
+  // Find session with matching mcp_token
+  for (const session of result.data) {
+    if (session.mcp_token === token) {
+      // Restore to memory cache
+      tokenStore.set(token, { userId, sessionId, createdAt });
+      return { userId, sessionId, createdAt };
+    }
+  }
+
+  return null; // Invalid token
+}
+```
+
+### JSON-RPC Protocol Implementation
+
+**Methods supported:**
+
+1. **initialize** - Protocol handshake
+
+```json
+Request:  { "method": "initialize", "params": { "protocolVersion": "2025-06-18" } }
+Response: { "result": { "protocolVersion": "2025-06-18", "capabilities": {...} } }
+```
+
+2. **tools/list** - List available tools
+
+```json
+Request:  { "method": "tools/list" }
+Response: { "result": { "tools": [{ "name": "agor_sessions_list", ... }] } }
+```
+
+3. **tools/call** - Execute a tool
+
+```json
+Request:  { "method": "tools/call", "params": { "name": "agor_sessions_list", "arguments": { "limit": 5 } } }
+Response: { "result": { "content": [{ "type": "text", "text": "{...}" }] } }
+```
+
+4. **notifications/initialized** - Client ready (204 No Content)
+
+### Auto-Configuration
+
+MCP server config is **automatically injected** when starting Claude sessions:
+
+```typescript
+// prompt-service.ts
+export async function setupQuery(...) {
+  const mcpToken = session.mcp_token;
+
+  if (mcpToken) {
+    options.mcpServers = {
+      agor: {
+        name: 'agor',
+        type: 'http',
+        url: `http://localhost:3030/mcp?sessionToken=${mcpToken}`
+      }
+    };
+  }
+}
+```
+
+**No manual configuration required** - agents automatically get access to Agor MCP tools!
+
+### Testing Strategy
+
+**Vitest integration tests** verify all tools work end-to-end:
+
+```typescript
+// src/mcp/routes.test.ts
+describe('MCP Tools - Session Tools', () => {
+  it('agor_sessions_list returns sessions', async () => {
+    const result = await callMCPTool('agor_sessions_list', { limit: 5 });
+    expect(result).toHaveProperty('total');
+    expect(Array.isArray(result.data)).toBe(true);
+  });
+
+  it('agor_sessions_get_current returns current session', async () => {
+    const result = await callMCPTool('agor_sessions_get_current');
+    expect(result).toHaveProperty('session_id');
+    expect(result).toHaveProperty('status');
+  });
+});
+```
+
+**Run tests:** `pnpm test` (54ms for 10 tests)
+
+### Future: Write Operations (Second Batch)
+
+Read-only tools are stable. Next batch will enable agents to modify their environment:
+
+- `agor_sessions_create` - Create new session
+- `agor_sessions_spawn` - Spawn child session (subtask orchestration!)
+- `agor_sessions_fork` - Fork session at specific point
+- `agor_boards_create` - Create new board
+- `agor_worktrees_create` - Create new worktree
+
+**This enables fully autonomous multi-agent workflows.**
+
+### Implementation Status
+
+- ✅ HTTP MCP endpoint (`POST /mcp`)
+- ✅ JSON-RPC 2.0 protocol handler
+- ✅ Session token authentication
+- ✅ Auto-configuration in Claude sessions
+- ✅ 9 read-only introspection tools
+- ✅ Service layer integration
+- ✅ Vitest integration tests
+- ⏳ Write operations (second batch)
+- ⏳ Permission system for tool execution
+- ⏳ Rate limiting and abuse prevention
+
+**See also:** `context/explorations/agor-mcp-server.md` for full design details
 
 ---
 

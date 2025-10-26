@@ -385,6 +385,7 @@ const SessionCanvas = ({
         type: 'worktreeNode',
         position,
         draggable: true,
+        zIndex: 500, // Above zones, below comments
         // Constrain to parent zone if pinned
         parentId: zoneId,
         extent: zoneId ? ('parent' as const) : undefined,
@@ -466,6 +467,7 @@ const SessionCanvas = ({
         draggable: false,
         selectable: false,
         focusable: false,
+        zIndex: 2000, // Cursors always on top (live presence)
         data: { user },
         width: 150,
         height: 150,
@@ -510,6 +512,7 @@ const SessionCanvas = ({
           position: comment.position.absolute,
           draggable: true,
           selectable: true,
+          zIndex: 1000, // Always on top (elevateNodesOnSelect is disabled)
           data: {
             comment,
             replyCount: replyCount.get(comment.comment_id) || 0,
@@ -571,6 +574,25 @@ const SessionCanvas = ({
     });
   }, [initialNodes, setNodes]);
 
+  // Helper: Partition nodes by type
+  const partitionNodesByType = useCallback((nodes: Node[]) => {
+    return {
+      zones: nodes.filter(n => n.type === 'zone'),
+      worktrees: nodes.filter(n => n.type === 'worktreeNode'),
+      comments: nodes.filter(n => n.type === 'comment'),
+      cursors: nodes.filter(n => n.type === 'cursor'),
+    };
+  }, []);
+
+  // Helper: Apply consistent z-ordering to nodes
+  // Z-order: zones < worktrees < comments < cursors (cursors always on top)
+  const applyZOrder = useCallback(
+    (zones: Node[], worktrees: Node[], comments: Node[], cursors: Node[]) => {
+      return [...zones, ...worktrees, ...comments, ...cursors];
+    },
+    []
+  );
+
   // Sync ZONE nodes separately
   useEffect(() => {
     if (isDraggingRef.current) return;
@@ -578,51 +600,39 @@ const SessionCanvas = ({
     const boardObjectNodes = getBoardObjectNodes();
 
     setNodes(currentNodes => {
-      // Keep existing worktrees, cursors, and comments, replace zones
-      const worktrees = currentNodes.filter(n => n.type === 'worktreeNode');
-      const cursors = currentNodes.filter(n => n.type === 'cursor');
-      const comments = currentNodes.filter(n => n.type === 'comment');
+      const { worktrees, comments, cursors } = partitionNodesByType(currentNodes);
 
       // Update zones with preserved selection state
       const zones = boardObjectNodes
         .filter(z => !deletedObjectsRef.current.has(z.id))
         .map(newZone => {
           const existingZone = currentNodes.find(n => n.id === newZone.id);
-          // Preserve selected state from existing zone
           return { ...newZone, selected: existingZone?.selected };
         });
 
-      return [...zones, ...worktrees, ...cursors, ...comments];
+      return applyZOrder(zones, worktrees, comments, cursors);
     });
-  }, [getBoardObjectNodes, setNodes]); // REMOVED setNodes from dependencies
+  }, [getBoardObjectNodes, setNodes, applyZOrder, partitionNodesByType]);
 
   // Sync CURSOR nodes separately
   useEffect(() => {
     if (isDraggingRef.current) return;
 
     setNodes(currentNodes => {
-      // Keep existing worktrees, zones, and comments, replace cursors
-      const worktrees = currentNodes.filter(n => n.type === 'worktreeNode');
-      const zones = currentNodes.filter(n => n.type === 'zone');
-      const comments = currentNodes.filter(n => n.type === 'comment');
-
-      return [...zones, ...worktrees, ...comments, ...cursorNodes];
+      const { zones, worktrees, comments } = partitionNodesByType(currentNodes);
+      return applyZOrder(zones, worktrees, comments, cursorNodes);
     });
-  }, [cursorNodes, setNodes]); // REMOVED setNodes from dependencies
+  }, [cursorNodes, setNodes, applyZOrder, partitionNodesByType]);
 
   // Sync COMMENT nodes separately
   useEffect(() => {
     if (isDraggingRef.current) return;
 
     setNodes(currentNodes => {
-      // Keep existing zones, worktrees, and cursors, replace comments
-      const zones = currentNodes.filter(n => n.type === 'zone');
-      const worktrees = currentNodes.filter(n => n.type === 'worktreeNode');
-      const cursors = currentNodes.filter(n => n.type === 'cursor');
-
-      return [...zones, ...worktrees, ...cursors, ...commentNodes];
+      const { zones, worktrees, cursors } = partitionNodesByType(currentNodes);
+      return applyZOrder(zones, worktrees, commentNodes, cursors);
     });
-  }, [commentNodes, setNodes]);
+  }, [commentNodes, setNodes, applyZOrder, partitionNodesByType]);
 
   // Sync edges
   useEffect(() => {
@@ -725,6 +735,9 @@ const SessionCanvas = ({
     (_event, node) => {
       if (!board || !client || !reactFlowInstanceRef.current) return;
 
+      // Reset dragging flag immediately to allow node sync effects to run
+      isDraggingRef.current = false;
+
       // Track final position locally
       localPositionsRef.current[node.id] = {
         x: node.position.x,
@@ -746,7 +759,6 @@ const SessionCanvas = ({
       layoutUpdateTimerRef.current = setTimeout(async () => {
         const updates = pendingLayoutUpdatesRef.current;
         pendingLayoutUpdatesRef.current = {};
-        isDraggingRef.current = false;
 
         try {
           // Separate updates for worktrees vs zones vs comments
@@ -981,9 +993,10 @@ const SessionCanvas = ({
 
       // Zone tool: start drag-to-draw
       if (activeTool === 'zone') {
+        // Use clientX/Y for coordinates relative to viewport
         setDrawingZone({
-          start: { x: event.pageX, y: event.pageY },
-          end: { x: event.pageX, y: event.pageY },
+          start: { x: event.clientX, y: event.clientY },
+          end: { x: event.clientX, y: event.clientY },
         });
       }
     },
@@ -995,7 +1008,7 @@ const SessionCanvas = ({
       if (activeTool === 'zone' && drawingZone && event.buttons === 1) {
         setDrawingZone({
           start: drawingZone.start,
-          end: { x: event.pageX, y: event.pageY },
+          end: { x: event.clientX, y: event.clientY },
         });
       }
     },
@@ -1035,7 +1048,8 @@ const SessionCanvas = ({
             type: 'zone',
             position,
             draggable: true,
-            style: { width, height, zIndex: -1 },
+            zIndex: 100, // Zones behind worktrees and comments
+            style: { width, height },
             data: {
               objectId,
               label: 'New Zone',
@@ -1147,13 +1161,41 @@ const SessionCanvas = ({
     }
   }, [commentPlacement, board, client, currentUserId, commentInput]);
 
-  // Node click handler for eraser mode
+  // Node click handler for eraser mode and comment placement
   const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
       if (activeTool === 'eraser') {
         // Only delete board objects (zones), not worktrees or cursors
         if (node.type === 'zone') {
           deleteObject(node.id);
+        }
+        return;
+      }
+
+      if (activeTool === 'comment' && reactFlowInstanceRef.current) {
+        // Allow comment placement on sessions and zones
+        if (node.type === 'worktreeNode' || node.type === 'zone') {
+          // Get the ReactFlow wrapper element bounds
+          const reactFlowBounds = (event.currentTarget as HTMLElement)
+            .closest('.react-flow')
+            ?.getBoundingClientRect();
+
+          if (!reactFlowBounds) return;
+
+          // Calculate position relative to ReactFlow container
+          const containerX = event.clientX - reactFlowBounds.left;
+          const containerY = event.clientY - reactFlowBounds.top;
+
+          // Project from container-relative screen coords to flow coords
+          const position = reactFlowInstanceRef.current.project({
+            x: containerX,
+            y: containerY,
+          });
+
+          setCommentPlacement({
+            position, // React Flow coordinates for storing in DB
+            screenPosition: { x: event.clientX, y: event.clientY }, // Screen coords for popover
+          });
         }
         return;
       }
@@ -1206,7 +1248,7 @@ const SessionCanvas = ({
       {drawingZone && (
         <div
           style={{
-            position: 'absolute',
+            position: 'fixed',
             left: Math.min(drawingZone.start.x, drawingZone.end.x),
             top: Math.min(drawingZone.start.y, drawingZone.end.y),
             width: Math.abs(drawingZone.end.x - drawingZone.start.x),
@@ -1241,6 +1283,7 @@ const SessionCanvas = ({
         nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={true}
+        elevateNodesOnSelect={false}
         panOnDrag={activeTool === 'select'}
         colorMode="dark"
         className={`tool-mode-${activeTool}`}
