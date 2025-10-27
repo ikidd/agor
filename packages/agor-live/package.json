@@ -14,9 +14,6 @@
     "LICENSE",
     "README.md"
   ],
-  "scripts": {
-    "prepublishOnly": "cp ../../README.md ."
-  },
   "imports": {
     "@agor/core": "./dist/core/index.js",
     "@agor/core/*": "./dist/core/*"

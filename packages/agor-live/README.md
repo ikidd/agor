@@ -16,14 +16,12 @@ npm install -g agor-live
 # Start the daemon
 agor daemon start
 
-# Check daemon status
-agor daemon status
+# Initialize / configure
+agor daemon init
 
 # Open UI in browser
 agor ui open
 
-# List sessions
-agor session list
 ```
 
 ## Features
@@ -35,59 +33,10 @@ agor session list
 - **Task Tracking**: First-class task primitives with genealogy
 - **MCP Integration**: Model Context Protocol server management
 
-## Architecture
-
-Agor consists of three main components (all bundled in this package):
-
-- **Daemon**: FeathersJS backend with REST + WebSocket API
-- **CLI**: oclif-based command-line interface
-- **UI**: React + Ant Design web interface
-
-## Daemon Management
-
-```bash
-# Start daemon in background
-agor daemon start
-
-# Stop daemon
-agor daemon stop
-
-# Restart daemon
-agor daemon restart
-
-# Check status
-agor daemon status
-
-# View logs
-agor daemon logs
-agor daemon logs --lines 100
-```
-
-## Configuration
-
-Agor stores configuration in `~/.agor/config.yaml` and data in `~/.agor/agor.db`.
-
-```bash
-# View current configuration
-agor config
-
-# Set configuration values
-agor config set daemon.port 4000
-agor config set credentials.ANTHROPIC_API_KEY sk-...
-
-# Clear active context
-agor config clear
-```
-
-## Development
-
-For development setup (contributing to Agor), see the main repository:
-https://github.com/agorapp/agor
-
 ## Documentation
 
 - **GitHub**: https://github.com/agorapp/agor
-- **Issues**: https://github.com/agorapp/agor/issues
+- **Docs**: https://agor.live
 
 ## License
 
