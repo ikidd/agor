@@ -8,7 +8,6 @@ export default {
     },
   },
   guide: 'Guide',
-  cli: 'CLI Reference',
   'api-reference': 'API Reference',
   blog: 'Blog',
   faq: 'FAQ',
