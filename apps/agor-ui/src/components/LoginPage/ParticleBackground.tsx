@@ -53,10 +53,10 @@ export function ParticleBackground() {
             quantity: 4,
           },
           attract: {
-            distance: 400, // Larger attraction radius
+            distance: 350, // Slightly larger radius
             duration: 0.4, // Smoother transition
-            speed: 8, // Faster attraction to cursor
-            factor: 10, // Strong pull effect
+            speed: 6, // Bit faster attraction
+            factor: 3, // Moderate pull strength
           },
         },
       },
@@ -78,7 +78,7 @@ export function ParticleBackground() {
             default: 'bounce' as const,
           },
           random: false,
-          speed: 2.5, // Faster base movement
+          speed: 1.5, // Bit more lively
           straight: false,
         },
         collisions: {

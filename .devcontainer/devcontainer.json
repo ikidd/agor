@@ -2,7 +2,12 @@
   "name": "Agor Playground (Recommended - Fast npm install)",
   "build": {
     "dockerfile": "playground/Dockerfile",
-    "context": ".."
+    "context": "..",
+    "options": [
+      "--cache-from=ghcr.io/mistercrunch/agor-playground:latest",
+      "--build-arg",
+      "BUILDKIT_INLINE_CACHE=1"
+    ]
   },
   "containerEnv": {
     "VITE_CODESPACES": "true",
