@@ -4,7 +4,7 @@ Complete developer documentation for contributing to Agor.
 
 ## Quick Setup
 
-### Docker Compose (Recommended for Most Development)
+### Docker Compose (Recommended)
 
 **Fastest way to start developing:**
 
@@ -23,7 +23,27 @@ docker compose up
 **Cons:**
 - ❌ Docker-in-docker complexity if your worktree environments use Docker (e.g., `docker compose up` in environment configs)
 
-### Local Development with pnpm (Required for Environment Development)
+**Running multiple instances in parallel:**
+
+If you're developing across multiple branches, run each with unique ports:
+
+```bash
+# Main branch
+cd ~/code/agor
+docker compose up  # :3030 (daemon), :5173 (UI)
+
+# Feature branch 1
+cd ~/code/agor-feature-auth
+PORT=4030 VITE_PORT=5174 docker compose -p agor-feature-auth up
+
+# Feature branch 2
+cd ~/code/agor-feature-payments
+PORT=5030 VITE_PORT=5175 docker compose -p agor-feature-payments up
+```
+
+The `-p` flag ensures isolated volumes and no container naming conflicts.
+
+### Local Development with pnpm (For Environment Testing)
 
 **Use this if you're working on:**
 - **Environment management** (process spawning, health checks, port allocation)
