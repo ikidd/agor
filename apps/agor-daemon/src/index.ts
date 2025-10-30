@@ -144,18 +144,22 @@ async function main() {
   // Get UI port from config for CORS
   const UI_PORT = config.ui?.port || 5173;
 
+  // Handle ANTHROPIC_API_KEY with priority: env var > config > Claude CLI auth
+  // If config has a key but env doesn't, set env var so spawned processes can use it
+  if (config.credentials?.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    process.env.ANTHROPIC_API_KEY = config.credentials.ANTHROPIC_API_KEY;
+    console.log('✅ Set ANTHROPIC_API_KEY from config for Claude Code');
+  }
+
   const apiKey = config.credentials?.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
 
   // Note: API key is optional - it can be configured per-tool or use Claude CLI's auth
   // Only show info message if no key is found (not a warning since it's not required)
   if (!apiKey) {
-    console.log('ℹ️  No ANTHROPIC_API_KEY in config (optional - can be set per-tool)');
-    console.log('   Claude Code can use its own credentials (~/.claude/)');
-    console.log('   Or set: agor config set credentials.ANTHROPIC_API_KEY <key>');
+    console.log('ℹ️  No ANTHROPIC_API_KEY found - will use Claude CLI auth if available');
+    console.log('   To use API key: agor config set credentials.ANTHROPIC_API_KEY <key>');
+    console.log('   Or run: claude login');
   }
-  // NOTE: Do NOT set process.env.ANTHROPIC_API_KEY here!
-  // The Claude CLI has its own authentication system and setting the env var
-  // can interfere with it. The SDK will pass apiKey as an option instead.
 
   // Create Feathers app
   const app = feathersExpress(feathers());
@@ -888,7 +892,13 @@ async function main() {
     worktreesRepo // Worktrees repo for fetching worktree paths
   );
 
-  // Initialize CodexTool (uses OPENAI_API_KEY from environment)
+  // Handle OPENAI_API_KEY with priority: env var > config
+  // If config has a key but env doesn't, set env var so spawned processes can use it
+  if (config.credentials?.OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
+    process.env.OPENAI_API_KEY = config.credentials.OPENAI_API_KEY;
+    console.log('✅ Set OPENAI_API_KEY from config for Codex');
+  }
+
   const openaiApiKey = config.credentials?.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
   const codexTool = new CodexTool(
     messagesRepo,
@@ -906,7 +916,13 @@ async function main() {
     console.warn('   Or set OPENAI_API_KEY environment variable');
   }
 
-  // Initialize GeminiTool (uses GEMINI_API_KEY from environment)
+  // Handle GEMINI_API_KEY with priority: env var > config
+  // If config has a key but env doesn't, set env var so spawned processes can use it
+  if (config.credentials?.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+    process.env.GEMINI_API_KEY = config.credentials.GEMINI_API_KEY;
+    console.log('✅ Set GEMINI_API_KEY from config for Gemini');
+  }
+
   const geminiApiKey = config.credentials?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   const geminiTool = new GeminiTool(
     messagesRepo,
@@ -923,13 +939,7 @@ async function main() {
     console.warn('⚠️  No GEMINI_API_KEY found - Gemini sessions will fail');
     console.warn('   Run: agor config set credentials.GEMINI_API_KEY <your-key>');
     console.warn('   Or set GEMINI_API_KEY environment variable');
-  } else {
-    // CRITICAL: Set environment variable for Gemini SDK
-    // Unlike Claude Code, Gemini SDK reads GEMINI_API_KEY from process.env
-    process.env.GEMINI_API_KEY = geminiApiKey;
   }
-  // NOTE: Do NOT set process.env.OPENAI_API_KEY here for the same reason as ANTHROPIC_API_KEY
-  // Let the Codex CLI use its own auth system
 
   // Configure custom route for bulk message creation
   app.use('/messages/bulk', {
