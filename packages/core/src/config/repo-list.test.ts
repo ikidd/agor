@@ -16,10 +16,10 @@ describe('getRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -29,10 +29,10 @@ describe('getRepoReferenceOptions', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
-      label: 'anthropics/agor',
+      label: 'preset-io/agor',
       value: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f',
       type: 'managed',
-      slug: 'anthropics/agor',
+      slug: 'preset-io/agor',
       description: 'Agor (bare repo)',
     });
   });
@@ -41,10 +41,10 @@ describe('getRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -57,7 +57,7 @@ describe('getRepoReferenceOptions', () => {
         worktree_unique_id: 1,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'main',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/main',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/main',
         ref: 'refs/heads/main',
         new_branch: false,
         last_commit_sha: 'abc123',
@@ -71,10 +71,10 @@ describe('getRepoReferenceOptions', () => {
 
     expect(result).toHaveLength(2);
     expect(result[1]).toEqual({
-      label: 'anthropics/agor:main',
+      label: 'preset-io/agor:main',
       value: 'wt_01933e4b1234a8f39d2e1c4b5a6f7c35',
       type: 'managed-worktree',
-      slug: 'anthropics/agor',
+      slug: 'preset-io/agor',
       worktree: 'main',
       description: 'Agor - main (refs/heads/main)',
     });
@@ -84,10 +84,10 @@ describe('getRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -109,7 +109,7 @@ describe('getRepoReferenceOptions', () => {
         worktree_unique_id: 1,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'main',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/main',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/main',
         ref: 'refs/heads/main',
         new_branch: false,
         last_commit_sha: 'abc123',
@@ -123,7 +123,7 @@ describe('getRepoReferenceOptions', () => {
         worktree_unique_id: 2,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'feat-auth',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/feat-auth',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/feat-auth',
         ref: 'refs/heads/feat-auth',
         new_branch: true,
         last_commit_sha: 'def456',
@@ -151,16 +151,16 @@ describe('getRepoReferenceOptions', () => {
 
     expect(result).toHaveLength(5);
 
-    expect(result[0].label).toBe('anthropics/agor');
+    expect(result[0].label).toBe('preset-io/agor');
     expect(result[0].type).toBe('managed');
 
     expect(result[1].label).toBe('apache/superset');
     expect(result[1].type).toBe('managed');
 
-    expect(result[2].label).toBe('anthropics/agor:main');
+    expect(result[2].label).toBe('preset-io/agor:main');
     expect(result[2].type).toBe('managed-worktree');
 
-    expect(result[3].label).toBe('anthropics/agor:feat-auth');
+    expect(result[3].label).toBe('preset-io/agor:feat-auth');
     expect(result[3].type).toBe('managed-worktree');
 
     expect(result[4].label).toBe('apache/superset:main');
@@ -171,10 +171,10 @@ describe('getRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -187,7 +187,7 @@ describe('getRepoReferenceOptions', () => {
         worktree_unique_id: 1,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'main',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/main',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/main',
         ref: 'refs/heads/main',
         new_branch: false,
         last_commit_sha: 'abc123',
@@ -214,18 +214,18 @@ describe('getRepoReferenceOptions', () => {
     const result = getRepoReferenceOptions(repos, worktrees);
 
     expect(result).toHaveLength(2);
-    expect(result.some((opt) => opt.worktree === 'orphan-branch')).toBe(false);
-    expect(result.some((opt) => opt.worktree === 'main')).toBe(true);
+    expect(result.some(opt => opt.worktree === 'orphan-branch')).toBe(false);
+    expect(result.some(opt => opt.worktree === 'main')).toBe(true);
   });
 
   it('should handle repos without worktrees', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -245,7 +245,7 @@ describe('getRepoReferenceOptions', () => {
     expect(result).toHaveLength(2);
     expect(result[0].type).toBe('managed');
     expect(result[1].type).toBe('managed');
-    expect(result.every((opt) => opt.type === 'managed')).toBe(true);
+    expect(result.every(opt => opt.type === 'managed')).toBe(true);
   });
 
   it('should use correct ID values for repo and worktree options', () => {
@@ -334,10 +334,10 @@ describe('getGroupedRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -355,7 +355,7 @@ describe('getGroupedRepoReferenceOptions', () => {
     const result = getGroupedRepoReferenceOptions(repos);
 
     expect(Object.keys(result)).toHaveLength(2);
-    expect(result['anthropics/agor']).toBeDefined();
+    expect(result['preset-io/agor']).toBeDefined();
     expect(result['apache/superset']).toBeDefined();
   });
 
@@ -363,10 +363,10 @@ describe('getGroupedRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -374,12 +374,12 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos);
 
-    expect(result['anthropics/agor']).toHaveLength(1);
-    expect(result['anthropics/agor'][0]).toEqual({
-      label: 'anthropics/agor',
+    expect(result['preset-io/agor']).toHaveLength(1);
+    expect(result['preset-io/agor'][0]).toEqual({
+      label: 'preset-io/agor',
       value: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f',
       type: 'managed',
-      slug: 'anthropics/agor',
+      slug: 'preset-io/agor',
       description: 'Agor (bare repo)',
     });
   });
@@ -388,10 +388,10 @@ describe('getGroupedRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -404,7 +404,7 @@ describe('getGroupedRepoReferenceOptions', () => {
         worktree_unique_id: 1,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'main',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/main',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/main',
         ref: 'refs/heads/main',
         new_branch: false,
         last_commit_sha: 'abc123',
@@ -418,7 +418,7 @@ describe('getGroupedRepoReferenceOptions', () => {
         worktree_unique_id: 2,
         created_by: 'user_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
         name: 'feat-auth',
-        path: '/Users/max/.agor/worktrees/anthropics/agor/feat-auth',
+        path: '/Users/max/.agor/worktrees/preset-io/agor/feat-auth',
         ref: 'refs/heads/feat-auth',
         new_branch: true,
         last_commit_sha: 'def456',
@@ -430,22 +430,22 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos, worktrees);
 
-    expect(result['anthropics/agor']).toHaveLength(3);
-    expect(result['anthropics/agor'][0].type).toBe('managed');
-    expect(result['anthropics/agor'][1].type).toBe('managed-worktree');
-    expect(result['anthropics/agor'][2].type).toBe('managed-worktree');
-    expect(result['anthropics/agor'][1].worktree).toBe('main');
-    expect(result['anthropics/agor'][2].worktree).toBe('feat-auth');
+    expect(result['preset-io/agor']).toHaveLength(3);
+    expect(result['preset-io/agor'][0].type).toBe('managed');
+    expect(result['preset-io/agor'][1].type).toBe('managed-worktree');
+    expect(result['preset-io/agor'][2].type).toBe('managed-worktree');
+    expect(result['preset-io/agor'][1].worktree).toBe('main');
+    expect(result['preset-io/agor'][2].worktree).toBe('feat-auth');
   });
 
   it('should maintain separate groups for multiple repos', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -493,9 +493,9 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos, worktrees);
 
-    expect(result['anthropics/agor']).toHaveLength(2);
+    expect(result['preset-io/agor']).toHaveLength(2);
     expect(result['apache/superset']).toHaveLength(2);
-    expect(result['anthropics/agor'][1].label).toBe('anthropics/agor:main');
+    expect(result['preset-io/agor'][1].label).toBe('preset-io/agor:main');
     expect(result['apache/superset'][1].label).toBe('apache/superset:main');
   });
 
@@ -503,10 +503,10 @@ describe('getGroupedRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -545,19 +545,19 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos, worktrees);
 
-    expect(result['anthropics/agor']).toHaveLength(2);
+    expect(result['preset-io/agor']).toHaveLength(2);
     expect(Object.keys(result)).toHaveLength(1);
-    expect(result['anthropics/agor'].some((opt) => opt.worktree === 'orphan')).toBe(false);
+    expect(result['preset-io/agor'].some(opt => opt.worktree === 'orphan')).toBe(false);
   });
 
   it('should handle repos without worktrees', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -574,9 +574,9 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos, []);
 
-    expect(result['anthropics/agor']).toHaveLength(1);
+    expect(result['preset-io/agor']).toHaveLength(1);
     expect(result['apache/superset']).toHaveLength(1);
-    expect(result['anthropics/agor'][0].type).toBe('managed');
+    expect(result['preset-io/agor'][0].type).toBe('managed');
     expect(result['apache/superset'][0].type).toBe('managed');
   });
 
@@ -584,10 +584,10 @@ describe('getGroupedRepoReferenceOptions', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -612,8 +612,8 @@ describe('getGroupedRepoReferenceOptions', () => {
 
     const result = getGroupedRepoReferenceOptions(repos, worktrees);
 
-    expect(result['anthropics/agor']).toBeDefined();
-    expect(result['anthropics/agor']).toHaveLength(2);
+    expect(result['preset-io/agor']).toBeDefined();
+    expect(result['preset-io/agor']).toHaveLength(2);
   });
 
   it('should use correct structure for each option in groups', () => {
@@ -675,27 +675,27 @@ describe('getDefaultRepoReference', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
     ];
 
     const result = getDefaultRepoReference(repos);
-    expect(result).toBe('anthropics/agor');
+    expect(result).toBe('preset-io/agor');
   });
 
   it('should return first repo when multiple repos exist', () => {
     const repos: Repo[] = [
       {
         repo_id: 'repo_01933e4a7b897c35a8f39d2e1c4b5a6f' as UUID,
-        slug: 'anthropics/agor' as RepoSlug,
+        slug: 'preset-io/agor' as RepoSlug,
         name: 'Agor',
-        remote_url: 'https://github.com/anthropics/agor.git',
-        local_path: '/Users/max/.agor/repos/anthropics/agor',
+        remote_url: 'https://github.com/preset-io/agor.git',
+        local_path: '/Users/max/.agor/repos/preset-io/agor',
         created_at: new Date('2024-01-01').toISOString(),
         last_updated: new Date('2024-01-01').toISOString(),
       },
@@ -720,7 +720,7 @@ describe('getDefaultRepoReference', () => {
     ];
 
     const result = getDefaultRepoReference(repos);
-    expect(result).toBe('anthropics/agor');
+    expect(result).toBe('preset-io/agor');
   });
 
   it('should not be affected by repo order', () => {

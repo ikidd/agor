@@ -230,8 +230,8 @@ describe('extractSlugFromUrl', () => {
 
   describe('HTTPS URLs', () => {
     it('should extract from HTTPS URL', () => {
-      const result = extractSlugFromUrl('https://github.com/anthropics/agor.git');
-      expect(result).toBe('anthropics/agor');
+      const result = extractSlugFromUrl('https://github.com/preset-io/agor.git');
+      expect(result).toBe('preset-io/agor');
     });
 
     it('should extract from HTTPS URL without .git', () => {
@@ -570,7 +570,7 @@ describe('integration scenarios', () => {
   });
 
   it('should extract slug from URL and validate', () => {
-    const url = 'https://github.com/anthropics/agor.git';
+    const url = 'https://github.com/preset-io/agor.git';
     const slug = extractSlugFromUrl(url);
     expect(isValidSlug(slug)).toBe(true);
   });

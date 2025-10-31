@@ -67,8 +67,8 @@ export function parseRepoReference(ref: string): RepoReference {
  * @returns Repository slug (org/name)
  *
  * @example
- * extractSlugFromUrl('https://github.com/anthropics/agor.git')
- * // => 'anthropics/agor'
+ * extractSlugFromUrl('https://github.com/preset-io/agor.git')
+ * // => 'preset-io/agor'
  *
  * @example
  * extractSlugFromUrl('git@github.com:apache/superset.git')
