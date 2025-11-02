@@ -284,12 +284,14 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
               style={{
                 padding: token.sizeUnit,
                 borderRadius: token.borderRadius,
-                background: token.colorBgLayout,
-                fontStyle: 'italic',
-                color: token.colorTextSecondary,
+                background: token.colorBgElevated,
               }}
             >
-              <MarkdownRenderer content={thoughtContent} inline />
+              <MarkdownRenderer
+                content={thoughtContent}
+                inline
+                style={{ color: token.colorTextTertiary }}
+              />
             </div>
           ),
         }),
@@ -320,13 +322,20 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
       );
 
       // Determine status and icon
-      const status = !toolResult ? 'pending' : isError ? 'error' : 'success';
+      // Don't use 'success' or 'pending' status to avoid colored backgrounds from ThoughtChain
+      // Only use 'error' status for actual errors
+      const status = isError ? 'error' : undefined;
       const icon = !toolResult ? (
-        <Spin key="loading" size="small" />
+        <span key="loading" style={{ opacity: 1 }}>
+          <Spin size="small" />
+        </span>
       ) : isError ? (
-        <CloseCircleOutlined key="error" style={{ fontSize: 14, color: token.colorErrorBg }} />
+        <CloseCircleOutlined key="error" style={{ fontSize: 14, color: token.colorError }} />
       ) : (
-        <CheckCircleOutlined key="success" style={{ fontSize: 14, color: token.colorSuccessBg }} />
+        <CheckCircleOutlined
+          key="success"
+          style={{ fontSize: 14, color: token.colorTextSecondary }}
+        />
       );
 
       // Build additional details line (e.g., command for Bash)
@@ -446,9 +455,9 @@ export const AgentChain: React.FC<AgentChainProps> = ({ messages }) => {
 
             {/* Status icon */}
             {hasErrors ? (
-              <CloseCircleOutlined style={{ color: token.colorErrorBg, fontSize: 16 }} />
+              <CloseCircleOutlined style={{ color: token.colorError, fontSize: 16 }} />
             ) : (
-              <CheckCircleOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+              <CheckCircleOutlined style={{ color: token.colorTextSecondary, fontSize: 16 }} />
             )}
 
             {/* Summary text */}

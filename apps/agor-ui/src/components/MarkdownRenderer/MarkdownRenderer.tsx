@@ -22,11 +22,19 @@ interface MarkdownRendererProps {
    * If true, renders inline (without <p> wrapper)
    */
   inline?: boolean;
+  /**
+   * Optional style to apply to the wrapper
+   */
+  style?: React.CSSProperties;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, inline = false }) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
+  content,
+  inline = false,
+  style,
+}) => {
   // Handle array of strings: filter empty, join with double newlines
-  const text = Array.isArray(content) ? content.filter((t) => t.trim()).join('\n\n') : content;
+  const text = Array.isArray(content) ? content.filter(t => t.trim()).join('\n\n') : content;
 
   let html = md.render(text);
 
@@ -36,7 +44,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, inl
   }
 
   return (
-    <Typography>
+    <Typography style={style}>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: markdown content is from trusted source (Agent SDK) */}
       <div dangerouslySetInnerHTML={{ __html: html }} />
     </Typography>

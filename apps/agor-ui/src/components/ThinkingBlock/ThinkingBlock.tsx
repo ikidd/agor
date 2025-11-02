@@ -83,19 +83,18 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
             <div
               style={{
                 fontSize: 13,
-                color: token.colorTextSecondary,
                 whiteSpace: 'pre-wrap',
               }}
             >
-              {content ? (
-                <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 0 }}>
-                  {content}
-                </Typography.Paragraph>
-              ) : (
-                <Text type="secondary" italic>
-                  Thinking...
-                </Text>
-              )}
+              <div style={{ color: token.colorTextTertiary }}>
+                {content ? (
+                  <Typography.Paragraph style={{ fontSize: 13, marginBottom: 0 }}>
+                    {content}
+                  </Typography.Paragraph>
+                ) : (
+                  <Text>Thinking...</Text>
+                )}
+              </div>
             </div>
           ),
         },

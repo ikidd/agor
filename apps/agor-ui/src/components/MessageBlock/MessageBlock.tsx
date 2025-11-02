@@ -19,7 +19,7 @@ import {
 } from '@agor/core/types';
 import { RobotOutlined } from '@ant-design/icons';
 import { Bubble } from '@ant-design/x';
-import { Avatar, theme } from 'antd';
+import { Avatar, Spin, theme } from 'antd';
 import type React from 'react';
 import { MarkdownRenderer } from '../MarkdownRenderer';
 import { PermissionRequestBlock } from '../PermissionRequestBlock';
@@ -249,15 +249,9 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
 
           // Special handling: Task tools display as text, not tool blocks
           if (toolUse.name === 'Task') {
-            const subagentType = toolUse.input.subagent_type || 'Task';
-            const description = toolUse.input.description || '';
-            const taskText = `🔧 **Task (${subagentType}):** ${description}`;
-
-            if (hasSeenTool) {
-              textAfterTools.push(taskText);
-            } else {
-              textBeforeTools.push(taskText);
-            }
+            // Store in tool map to check for results later
+            toolUseMap.set(toolUse.id, toolUse);
+            hasSeenTool = true;
           } else {
             // Regular tools go into tool map
             toolUseMap.set(toolUse.id, toolUse);
@@ -288,11 +282,22 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
       }
 
       // Second pass: match tool_use with tool_result
+      // Separate Task tools from regular tools
       for (const [id, toolUse] of toolUseMap.entries()) {
-        toolBlocks.push({
-          toolUse,
-          toolResult: toolResultMap.get(id),
-        });
+        if (toolUse.name === 'Task') {
+          // Task tools: render as text message (spinner is shown in the tool chain)
+          const subagentType = toolUse.input.subagent_type || 'Task';
+          const description = toolUse.input.description || '';
+          const taskText = `🔧 **Task (${subagentType}):** ${description}`;
+
+          textBeforeTools.push(taskText);
+        } else {
+          // Regular tools
+          toolBlocks.push({
+            toolUse,
+            toolResult: toolResultMap.get(id),
+          });
+        }
       }
     }
 
@@ -346,14 +351,30 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
               ) : agentic_tool ? (
                 <ToolIcon tool={agentic_tool} size={32} />
               ) : (
-                <Avatar icon={<RobotOutlined />} style={{ backgroundColor: token.colorSuccess }} />
+                <Avatar
+                  icon={<RobotOutlined />}
+                  style={{ backgroundColor: token.colorBgContainer }}
+                />
               )
             }
             loading={isLoading}
             typing={shouldUseTyping ? { step: 5, interval: 20 } : false}
             content={
-              <div style={{ wordWrap: 'break-word' }}>
-                <MarkdownRenderer content={textBeforeTools} inline />
+              <div
+                style={{
+                  wordWrap: 'break-word',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: token.sizeUnit,
+                }}
+              >
+                {textBeforeTools.map((text, idx) => (
+                  <MarkdownRenderer
+                    key={`text-${idx}-${text.substring(0, 20)}`}
+                    content={text}
+                    inline
+                  />
+                ))}
               </div>
             }
             variant={isUser ? 'filled' : 'outlined'}
@@ -385,7 +406,10 @@ export const MessageBlock: React.FC<MessageBlockProps> = ({
               agentic_tool ? (
                 <ToolIcon tool={agentic_tool} size={32} />
               ) : (
-                <Avatar icon={<RobotOutlined />} style={{ backgroundColor: token.colorSuccess }} />
+                <Avatar
+                  icon={<RobotOutlined />}
+                  style={{ backgroundColor: token.colorBgContainer }}
+                />
               )
             }
             loading={isLoading}
