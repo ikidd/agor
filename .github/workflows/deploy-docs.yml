@@ -42,6 +42,8 @@ jobs:
 
       - name: Build docs
         run: pnpm --filter @agor/docs build
+        env:
+          NEXT_PUBLIC_GA_ID: G-DME77D3LDH
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

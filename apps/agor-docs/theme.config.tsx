@@ -63,11 +63,32 @@ const config: DocsThemeConfig = {
       pageTitle === 'agor' ? 'agor – Next-gen agent orchestration' : `${pageTitle} – agor`;
     const ogImage = 'https://agor.live/hero.png';
     const siteUrl = 'https://agor.live';
+    const gaId = process.env.NEXT_PUBLIC_GA_ID;
 
     return (
       <>
         <title>{fullTitle}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        {/* Google Analytics */}
+        {gaId && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: GA tracking code is static and controlled
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', {
+                    page_path: window.location.pathname,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
 
         {/* Standard Meta Tags */}
         <meta name="description" content={description} />
