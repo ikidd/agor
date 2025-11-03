@@ -2,13 +2,13 @@
  * List all MCP servers
  */
 
-import { createClient } from '@agor/core/api';
 import type { MCPServer } from '@agor/core/types';
-import { Command, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { BaseCommand } from '../../base-command';
 
-export default class McpList extends Command {
+export default class McpList extends BaseCommand {
   static override description = 'List all MCP servers';
 
   static override examples = [
@@ -36,7 +36,7 @@ export default class McpList extends Command {
 
   public async run(): Promise<void> {
     const { flags } = await this.parse(McpList);
-    const client = createClient();
+    const client = await this.connectToDaemon();
 
     try {
       // Build query params
@@ -51,7 +51,7 @@ export default class McpList extends Command {
 
       if (servers.length === 0) {
         this.log(chalk.yellow('No MCP servers found.'));
-        await this.cleanup(client);
+        await this.cleanupClient(client);
         return;
       }
 
@@ -83,23 +83,13 @@ export default class McpList extends Command {
 
       this.log(table.toString());
       this.log(chalk.gray(`\nTotal: ${servers.length} server(s)`));
+
+      await this.cleanupClient(client);
     } catch (error) {
-      this.log(chalk.red('✗ Failed to fetch MCP servers'));
-      if (error instanceof Error) {
-        this.log(chalk.red(error.message));
-      }
-      await this.cleanup(client);
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(
+        `Failed to fetch MCP servers: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-
-    await this.cleanup(client);
-  }
-
-  private async cleanup(client: import('@agor/core/api').AgorClient): Promise<void> {
-    await new Promise<void>((resolve) => {
-      client.io.once('disconnect', () => resolve());
-      client.io.close();
-      setTimeout(() => resolve(), 1000);
-    });
   }
 }

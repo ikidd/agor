@@ -4,13 +4,12 @@
  * Creates an isolated working directory for a specific branch.
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
 import type { Repo, Worktree } from '@agor/core/types';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class WorktreeAdd extends Command {
+export default class WorktreeAdd extends BaseCommand {
   static description = 'Create a git worktree for isolated development';
 
   static examples = [
@@ -63,19 +62,9 @@ export default class WorktreeAdd extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(WorktreeAdd);
-
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
+    const client = await this.connectToDaemon();
 
     try {
-      const client = createClient(daemonUrl);
       const reposService = client.service('repos');
 
       // Fetch repo by ID
@@ -156,10 +145,9 @@ export default class WorktreeAdd extends Command {
       );
       this.log('');
 
-      // Close socket
-      client.io.close();
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
+      await this.cleanupClient(client);
       this.error(
         `Failed to create worktree: ${error instanceof Error ? error.message : String(error)}`
       );

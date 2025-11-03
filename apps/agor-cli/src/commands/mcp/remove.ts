@@ -2,12 +2,11 @@
  * Remove an MCP server
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class McpRemove extends Command {
+export default class McpRemove extends BaseCommand {
   static override description = 'Remove an MCP server';
 
   static override examples = [
@@ -33,17 +32,7 @@ export default class McpRemove extends Command {
   public async run(): Promise<void> {
     const { args, flags } = await this.parse(McpRemove);
 
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
-
-    const client = createClient(daemonUrl);
+    const client = await this.connectToDaemon();
 
     try {
       // Try to find the server first
@@ -58,9 +47,8 @@ export default class McpRemove extends Command {
         const server = servers.find((s: { name: string }) => s.name === args.id);
 
         if (!server) {
-          this.log(chalk.red(`✗ MCP server not found: ${args.id}`));
-          await this.cleanup(client);
-          process.exit(1);
+          await this.cleanupClient(client);
+          this.error(`MCP server not found: ${args.id}`);
         }
 
         serverId = server.mcp_server_id;
@@ -76,8 +64,8 @@ export default class McpRemove extends Command {
         // In production, you'd use a prompt library like inquirer
         this.log(chalk.gray('Use --force to skip this confirmation'));
         this.log('');
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        return;
       }
 
       // Delete the server
@@ -87,27 +75,12 @@ export default class McpRemove extends Command {
       this.log(`${chalk.green('✓')} MCP server removed: ${args.id}`);
       this.log('');
 
-      await this.cleanup(client);
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      this.log('');
-      this.log(chalk.red('✗ Failed to remove MCP server'));
-      this.log('');
-      this.log(chalk.dim(message));
-      this.log('');
-
-      await this.cleanup(client);
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(
+        `Failed to remove MCP server: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-  }
-
-  private async cleanup(client: import('@agor/core/api').AgorClient): Promise<void> {
-    await new Promise<void>((resolve) => {
-      client.io.once('disconnect', () => resolve());
-      client.io.close();
-      setTimeout(() => resolve(), 1000);
-    });
   }
 }

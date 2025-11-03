@@ -2,12 +2,12 @@
  * Show details for an MCP server
  */
 
-import { createClient } from '@agor/core/api';
 import type { MCPServer } from '@agor/core/types';
-import { Args, Command } from '@oclif/core';
+import { Args } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class McpShow extends Command {
+export default class McpShow extends BaseCommand {
   static override description = 'Show MCP server details';
 
   static override examples = [
@@ -24,7 +24,7 @@ export default class McpShow extends Command {
 
   public async run(): Promise<void> {
     const { args } = await this.parse(McpShow);
-    const client = createClient();
+    const client = await this.connectToDaemon();
 
     try {
       // Try to fetch by ID first
@@ -38,13 +38,12 @@ export default class McpShow extends Command {
           query: { $limit: 1 },
         });
         const servers = (Array.isArray(result) ? result : result.data) as MCPServer[];
-        server = servers.find((s) => s.name === args.id) || null;
+        server = servers.find(s => s.name === args.id) || null;
       }
 
       if (!server) {
-        this.log(chalk.red(`✗ MCP server not found: ${args.id}`));
-        await this.cleanup(client);
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error(`MCP server not found: ${args.id}`);
       }
 
       // Display server details
@@ -136,23 +135,13 @@ export default class McpShow extends Command {
         this.log(chalk.gray(`Updated: ${new Date(server.updated_at).toLocaleString()}`));
       }
       this.log('');
+
+      await this.cleanupClient(client);
     } catch (error) {
-      this.log(chalk.red('✗ Failed to fetch MCP server'));
-      if (error instanceof Error) {
-        this.log(chalk.red(error.message));
-      }
-      await this.cleanup(client);
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(
+        `Failed to fetch MCP server: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-
-    await this.cleanup(client);
-  }
-
-  private async cleanup(client: import('@agor/core/api').AgorClient): Promise<void> {
-    await new Promise<void>((resolve) => {
-      client.io.once('disconnect', () => resolve());
-      client.io.close();
-      setTimeout(() => resolve(), 1000);
-    });
   }
 }

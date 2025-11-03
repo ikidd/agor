@@ -272,11 +272,11 @@ export async function createRestClient(url: string = 'http://localhost:3030'): P
   client.configure(authentication({ storage: undefined }));
 
   // Create a dummy socket object to satisfy the interface
-  // biome-ignore lint/suspicious/noExplicitAny: Dummy socket for REST-only mode
   client.io = {
     close: () => {},
     removeAllListeners: () => {},
     io: { opts: {} },
+    // biome-ignore lint/suspicious/noExplicitAny: Dummy socket for REST-only mode
   } as any;
 
   return client;

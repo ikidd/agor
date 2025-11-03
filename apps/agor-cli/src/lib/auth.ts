@@ -4,9 +4,9 @@
  * Handles JWT token storage and retrieval for daemon authentication
  */
 
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { readFile, writeFile, unlink, mkdir } from 'node:fs/promises';
 
 const AGOR_DIR = join(homedir(), '.agor');
 const TOKEN_FILE = join(AGOR_DIR, 'cli-token');

@@ -120,7 +120,9 @@ export default class BoardAddSession extends BaseCommand {
       );
     } catch (error) {
       await this.cleanupClient(client);
-      this.error(`Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`);
+      this.error(
+        `Failed to add session to board: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
 
     await this.cleanupClient(client);

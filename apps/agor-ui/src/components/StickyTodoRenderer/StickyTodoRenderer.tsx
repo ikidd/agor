@@ -12,10 +12,10 @@
  * - Only renders when TODOs exist (returns null otherwise)
  */
 
-import { useMemo } from 'react';
 import type { Message } from '@agor/core/types';
-import { TodoListRenderer } from '../ToolUseRenderer/renderers/TodoListRenderer';
 import { theme } from 'antd';
+import { useMemo } from 'react';
+import { TodoListRenderer } from '../ToolUseRenderer/renderers/TodoListRenderer';
 
 interface TodoItem {
   content: string;
@@ -73,10 +73,7 @@ export function StickyTodoRenderer({ messages }: StickyTodoRendererProps) {
         transition: 'opacity 0.3s ease',
       }}
     >
-      <TodoListRenderer
-        toolUseId="sticky-todo"
-        input={{ todos: latestTodo }}
-      />
+      <TodoListRenderer toolUseId="sticky-todo" input={{ todos: latestTodo }} />
     </div>
   );
 }

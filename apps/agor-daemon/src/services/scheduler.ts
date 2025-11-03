@@ -286,9 +286,7 @@ export class SchedulerService {
       // But still need to bypass auth - use the service with no params
       const sessionsService = this.app.service('sessions');
       const createdSession = await sessionsService.create(session);
-      console.log(
-        `      ✅ Spawned scheduled session for ${worktree.name} (run #${runIndex})`
-      );
+      console.log(`      ✅ Spawned scheduled session for ${worktree.name} (run #${runIndex})`);
 
       // 5. Trigger prompt execution (creates task and starts agent)
       const promptService = this.app.service('/sessions/:id/prompt');

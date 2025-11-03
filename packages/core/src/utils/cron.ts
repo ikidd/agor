@@ -63,7 +63,7 @@ export function humanizeCron(cronExpression: string): string {
       use24HourTimeFormat: true,
       throwExceptionOnParseError: true,
     });
-  } catch (error) {
+  } catch (_error) {
     // Fallback to raw cron if humanization fails
     return cronExpression;
   }

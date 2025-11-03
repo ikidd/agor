@@ -9,19 +9,6 @@ export default defineConfig({
   // In development, this is ignored (uses default /)
   base: process.env.NODE_ENV === 'production' ? '/ui/' : '/',
 
-  // Fix "504 Outdated Optimize Dep" errors with workspace dependencies
-  optimizeDeps: {
-    // Exclude workspace dependencies from pre-bundling
-    // This forces Vite to always use the latest built version
-    // Also exclude agent SDKs that have Node.js dependencies
-    exclude: [
-      '@agor/core',
-      '@openai/codex-sdk',
-      '@anthropic-ai/claude-agent-sdk',
-      '@google/gemini-cli-core',
-    ],
-  },
-
   // Mark Node.js-only packages as external so they're not bundled
   build: {
     rollupOptions: {

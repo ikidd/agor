@@ -45,7 +45,6 @@ export default class RepoList extends BaseCommand {
     const client = await this.connectToDaemon();
 
     try {
-
       // Build query
       const query = {
         $limit: flags.limit,

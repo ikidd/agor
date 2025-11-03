@@ -77,7 +77,7 @@ export abstract class BaseCommand extends Command {
       // No stored token - check if daemon allows anonymous access
       try {
         const response = await fetch(`${this.daemonUrl}/health`);
-        const health = await response.json();
+        const health = (await response.json()) as { auth?: { requireAuth?: boolean } };
         if (health.auth?.requireAuth) {
           // Daemon requires authentication
           this.error(

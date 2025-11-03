@@ -6,14 +6,12 @@
  */
 
 import path from 'node:path';
-import { createClient, isDaemonRunning } from '@agor/core/api';
 import {
   extractTasksFromMessages,
   filterConversationMessages,
   loadClaudeSession,
   transcriptsToMessages,
 } from '@agor/core/claude';
-import { getDaemonUrl } from '@agor/core/config';
 import { generateId } from '@agor/core/db';
 import type {
   MessageID,
@@ -26,10 +24,11 @@ import type {
   WorktreeID,
 } from '@agor/core/types';
 import { TaskStatus } from '@agor/core/types';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class SessionLoadClaude extends Command {
+export default class SessionLoadClaude extends BaseCommand {
   static description = 'Load a local Claude Code session into Agor';
 
   static examples = [
@@ -53,18 +52,10 @@ export default class SessionLoadClaude extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(SessionLoadClaude);
 
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
-
     const sessionId = args.sessionId as string;
     const projectDir = flags['project-dir'] || process.cwd();
+
+    const client = await this.connectToDaemon();
 
     try {
       this.log(`\n${chalk.blue('●')} Loading Claude Code session: ${chalk.cyan(sessionId)}\n`);
@@ -77,14 +68,11 @@ export default class SessionLoadClaude extends Command {
       // Filter to conversation messages
       const conversation = filterConversationMessages(claudeSession.messages);
       this.log(
-        `${chalk.green('✓')} Conversation: ${conversation.length} messages (${conversation.filter((m) => m.type === 'user').length} user, ${conversation.filter((m) => m.type === 'assistant').length} assistant)`
+        `${chalk.green('✓')} Conversation: ${conversation.length} messages (${conversation.filter(m => m.type === 'user').length} user, ${conversation.filter(m => m.type === 'assistant').length} assistant)`
       );
 
-      // Connect to daemon
-      const client = createClient(daemonUrl);
-
       // Extract first user message as description
-      const firstUserMessage = conversation.find((m) => m.type === 'user');
+      const firstUserMessage = conversation.find(m => m.type === 'user');
       const description = firstUserMessage?.message?.content
         ? typeof firstUserMessage.message.content === 'string'
           ? firstUserMessage.message.content.substring(0, 200)
@@ -213,7 +201,7 @@ export default class SessionLoadClaude extends Command {
       this.log(`${chalk.green('✓')} Created ${totalTasks} tasks`);
 
       // Update session with task IDs
-      const taskIds = createdTasks.map((t) => t.task_id);
+      const taskIds = createdTasks.map(t => t.task_id);
       await sessionsService.patch(created.session_id, {
         tasks: taskIds,
       });
@@ -252,9 +240,7 @@ export default class SessionLoadClaude extends Command {
         for (let i = 0; i < messageLinkUpdates.length; i += batchSize) {
           const batch = messageLinkUpdates.slice(i, i + batchSize);
           await Promise.all(
-            batch.map((update) =>
-              messagesService.patch(update.messageId, { task_id: update.taskId })
-            )
+            batch.map(update => messagesService.patch(update.messageId, { task_id: update.taskId }))
           );
           this.log(
             `${chalk.blue('●')} Linked ${Math.min(i + batchSize, messageLinkUpdates.length)}/${messageLinkUpdates.length} messages...`
@@ -270,14 +256,9 @@ export default class SessionLoadClaude extends Command {
       this.log(`View with: ${chalk.cyan(`agor session show ${created.session_id}`)}`);
       this.log('');
 
-      // Close socket connection and wait for it to close
-      await new Promise<void>((resolve) => {
-        client.io.once('disconnect', () => resolve());
-        client.io.close();
-        setTimeout(() => resolve(), 1000); // Fallback timeout
-      });
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
+      await this.cleanupClient(client);
       this.error(
         `Failed to load session: ${error instanceof Error ? error.message : String(error)}`
       );

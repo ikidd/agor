@@ -2,13 +2,13 @@
  * `agor user create` - Create a new user
  */
 
-import { createClient } from '@agor/core/api';
 import type { CreateUserInput, UserRole } from '@agor/core/types';
-import { Command, Flags } from '@oclif/core';
+import { Flags } from '@oclif/core';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { BaseCommand } from '../../base-command';
 
-export default class UserCreate extends Command {
+export default class UserCreate extends BaseCommand {
   static description = 'Create a new user account';
 
   static examples = [
@@ -39,6 +39,7 @@ export default class UserCreate extends Command {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(UserCreate);
+    const client = await this.connectToDaemon();
 
     try {
       // Prompt for missing fields
@@ -93,9 +94,6 @@ export default class UserCreate extends Command {
       const name = flags.name || answers.name;
       const password = flags.password || answers.password;
 
-      // Create FeathersJS client
-      const client = createClient();
-
       // Create user
       this.log('');
       this.log(chalk.gray('Creating user...'));
@@ -118,24 +116,16 @@ export default class UserCreate extends Command {
       this.log(chalk.gray('  1. Start daemon: pnpm --filter @agor/daemon dev'));
       this.log(chalk.gray('  2. Login via UI: http://localhost:5173'));
 
-      // Clean up socket
-      await new Promise<void>((resolve) => {
-        client.io.once('disconnect', () => resolve());
-        client.io.close();
-        setTimeout(() => resolve(), 1000);
-      });
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
-      this.log('');
-      this.log(chalk.red('✗ Failed to create user'));
-      if (error instanceof Error) {
-        if (error.message.includes('already exists')) {
-          this.log(chalk.red('  User with this email already exists'));
-        } else {
-          this.log(chalk.red(`  ${error.message}`));
-        }
-      }
-      process.exit(1);
+      await this.cleanupClient(client);
+      const errorMessage =
+        error instanceof Error
+          ? error.message.includes('already exists')
+            ? 'User with this email already exists'
+            : error.message
+          : String(error);
+      this.error(`${chalk.red('✗ Failed to create user')}\n${chalk.red(`  ${errorMessage}`)}`);
     }
   }
 }

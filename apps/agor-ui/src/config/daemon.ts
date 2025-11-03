@@ -15,32 +15,27 @@ interface WindowWithAgorConfig extends Window {
 }
 
 export function getDaemonUrl(): string {
-  // 1. Check runtime window global (if daemon injected config)
+  // 1. Explicit config (env var or runtime injection)
+  // Handles: Codespaces, production, any special setup
   if (typeof window !== 'undefined') {
     const injectedUrl = (window as WindowWithAgorConfig).AGOR_DAEMON_URL;
-    if (injectedUrl) {
-      return injectedUrl;
+    if (injectedUrl) return injectedUrl;
+  }
+
+  const envUrl = import.meta.env.VITE_DAEMON_URL;
+  if (envUrl) return envUrl;
+
+  // 2. Same-host assumption: daemon runs on same host as UI
+  // Replaces 5173 (UI port) with 3030 (daemon port)
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+      return origin.replace(':5173', ':3030');
     }
   }
 
-  // 2. Check build-time environment variable (set via .env.local or at build time)
-  const envUrl = import.meta.env.VITE_DAEMON_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-
-  // 3. Runtime detection: If UI is served from /ui path, it's served BY the daemon
-  // So the daemon must be at the same origin (window.location.origin)
-  // This handles: Codespaces, production, any case where daemon serves UI
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/ui')) {
-    return window.location.origin;
-  }
-
-  // 4. Fall back to default (local dev: UI dev server on 5173, daemon on 3030)
-  const defaultPort = import.meta.env.VITE_DAEMON_PORT || '3030';
-  const defaultHost = import.meta.env.VITE_DAEMON_HOST || 'localhost';
-
-  return `http://${defaultHost}:${defaultPort}`;
+  // 3. Local dev fallback: localhost:3030
+  return 'http://localhost:3030';
 }
 
 /**

@@ -4,14 +4,13 @@
  * Removes the repository from the database (does not delete files).
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
 import type { Repo } from '@agor/core/types';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { BaseCommand } from '../../base-command';
 
-export default class RepoRm extends Command {
+export default class RepoRm extends BaseCommand {
   static description = 'Remove a registered repository';
 
   static examples = [
@@ -40,19 +39,9 @@ export default class RepoRm extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(RepoRm);
-
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
+    const client = await this.connectToDaemon();
 
     try {
-      const client = createClient(daemonUrl);
       const reposService = client.service('repos');
 
       // First, fetch the repo to show details and confirm
@@ -72,6 +61,7 @@ export default class RepoRm extends Command {
       }
 
       if (!repo) {
+        await this.cleanupClient(client);
         this.error(`Repository not found: ${args.id}`);
       }
 
@@ -109,8 +99,7 @@ export default class RepoRm extends Command {
 
         if (!confirmed) {
           this.log(chalk.dim('Cancelled.'));
-          client.io.close();
-          process.exit(0);
+          await this.cleanupClient(client);
           return;
         }
       }
@@ -160,9 +149,9 @@ export default class RepoRm extends Command {
 
       this.log('');
 
-      client.io.close();
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
+      await this.cleanupClient(client);
       this.error(
         `Failed to remove repository: ${error instanceof Error ? error.message : String(error)}`
       );

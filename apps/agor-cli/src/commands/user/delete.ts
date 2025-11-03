@@ -2,13 +2,13 @@
  * `agor user delete` - Delete a user
  */
 
-import { createClient } from '@agor/core/api';
 import type { User } from '@agor/core/types';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { BaseCommand } from '../../base-command';
 
-export default class UserDelete extends Command {
+export default class UserDelete extends BaseCommand {
   static description = 'Delete a user account';
 
   static examples = [
@@ -34,24 +34,23 @@ export default class UserDelete extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(UserDelete);
+    const client = await this.connectToDaemon();
 
     try {
-      // Create FeathersJS client
-      const client = createClient();
-
       // Find user by email or ID
       const usersService = client.service('users');
       const result = await usersService.find();
       const users = (Array.isArray(result) ? result : result.data) as User[];
 
       const user = users.find(
-        (u) => u.email === args.user || u.user_id === args.user || u.user_id.startsWith(args.user)
+        u => u.email === args.user || u.user_id === args.user || u.user_id.startsWith(args.user)
       );
 
       if (!user) {
-        this.log(chalk.red('✗ User not found'));
-        this.log(chalk.gray(`  No user matching: ${args.user}`));
-        process.exit(1);
+        await this.cleanupClient(client);
+        this.error(
+          `${chalk.red('✗ User not found')}\n${chalk.gray(`  No user matching: ${args.user}`)}`
+        );
       }
 
       // Confirm deletion (unless --force)
@@ -67,7 +66,8 @@ export default class UserDelete extends Command {
 
         if (!confirm) {
           this.log(chalk.gray('Cancelled'));
-          process.exit(0);
+          await this.cleanupClient(client);
+          return;
         }
       }
 
@@ -79,19 +79,12 @@ export default class UserDelete extends Command {
       this.log(`  Email: ${chalk.cyan(user.email)}`);
       this.log(`  ID:    ${chalk.gray(user.user_id.substring(0, 8))}`);
 
-      // Clean up socket
-      await new Promise<void>((resolve) => {
-        client.io.once('disconnect', () => resolve());
-        client.io.close();
-        setTimeout(() => resolve(), 1000);
-      });
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
-      this.log(chalk.red('✗ Failed to delete user'));
-      if (error instanceof Error) {
-        this.log(chalk.red(`  ${error.message}`));
-      }
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(
+        `${chalk.red('✗ Failed to delete user')}\n${chalk.red(`  ${error instanceof Error ? error.message : String(error)}`)}`
+      );
     }
   }
 }

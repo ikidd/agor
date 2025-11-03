@@ -2,13 +2,12 @@
  * `agor mcp add` - Add a new MCP server
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { getDaemonUrl } from '@agor/core/config';
 import type { MCPServer } from '@agor/core/types';
-import { Args, Command, Flags } from '@oclif/core';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class McpAdd extends Command {
+export default class McpAdd extends BaseCommand {
   static description = 'Add a new MCP server';
 
   static examples = [
@@ -75,16 +74,6 @@ export default class McpAdd extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(McpAdd);
 
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
-
     // Validate transport-specific flags
     if (flags.transport === 'stdio' && !flags.command) {
       this.error('--command is required for stdio transport');
@@ -103,6 +92,8 @@ export default class McpAdd extends Command {
       this.error('--repo-id is required when scope=repo');
     }
 
+    const client = await this.connectToDaemon();
+
     try {
       this.log('');
       this.log(chalk.bold(`Adding MCP server ${chalk.cyan(args.name)}...`));
@@ -120,12 +111,12 @@ export default class McpAdd extends Command {
 
       // Add transport-specific config
       if (flags.command) data.command = flags.command;
-      if (flags.args) data.args = flags.args.split(',').map((arg) => arg.trim());
+      if (flags.args) data.args = flags.args.split(',').map(arg => arg.trim());
       if (flags.url) data.url = flags.url;
 
       // Add environment variables
       if (flags.env) {
-        const envPairs = flags.env.split(',').map((pair) => pair.trim());
+        const envPairs = flags.env.split(',').map(pair => pair.trim());
         const envObject: Record<string, string> = {};
         for (const pair of envPairs) {
           const [key, value] = pair.split('=');
@@ -143,8 +134,6 @@ export default class McpAdd extends Command {
       if (flags['repo-id']) data.repo_id = flags['repo-id'];
 
       // Call daemon API
-      const client = createClient(daemonUrl);
-
       const server = (await client.service('mcp-servers').create(data)) as MCPServer;
 
       this.log(`${chalk.green('✓')} MCP server added`);
@@ -174,22 +163,12 @@ export default class McpAdd extends Command {
 
       this.log('');
 
-      // Close socket
-      await new Promise<void>((resolve) => {
-        client.io.once('disconnect', () => resolve());
-        client.io.close();
-        setTimeout(() => resolve(), 1000);
-      });
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      this.log('');
-      this.log(chalk.red('✗ Failed to add MCP server'));
-      this.log('');
-      this.log(chalk.dim(message));
-      this.log('');
-      process.exit(1);
+      await this.cleanupClient(client);
+      this.error(
+        `Failed to add MCP server: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 }

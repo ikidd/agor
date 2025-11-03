@@ -4,12 +4,12 @@
  * Clones the repo to ~/.agor/repos/<name> and registers it with the daemon.
  */
 
-import { createClient, isDaemonRunning } from '@agor/core/api';
-import { extractSlugFromUrl, getDaemonUrl, isValidSlug } from '@agor/core/config';
-import { Args, Command, Flags } from '@oclif/core';
+import { extractSlugFromUrl, isValidSlug } from '@agor/core/config';
+import { Args, Flags } from '@oclif/core';
 import chalk from 'chalk';
+import { BaseCommand } from '../../base-command';
 
-export default class RepoAdd extends Command {
+export default class RepoAdd extends BaseCommand {
   static description = 'Clone and register a Git repository';
 
   static examples = [
@@ -34,16 +34,7 @@ export default class RepoAdd extends Command {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(RepoAdd);
-
-    // Check if daemon is running
-    const daemonUrl = await getDaemonUrl();
-    const running = await isDaemonRunning(daemonUrl);
-
-    if (!running) {
-      this.error(
-        `Daemon not running. Start it with: ${chalk.cyan('cd apps/agor-daemon && pnpm dev')}`
-      );
-    }
+    const client = await this.connectToDaemon();
 
     try {
       // Extract slug from URL or use custom slug
@@ -58,6 +49,7 @@ export default class RepoAdd extends Command {
 
       // Validate slug format
       if (!isValidSlug(slug)) {
+        await this.cleanupClient(client);
         this.error(
           `Invalid slug format: ${slug}\n` +
             `Slug must be in format "org/name" (e.g., "apache/superset")\n` +
@@ -71,8 +63,6 @@ export default class RepoAdd extends Command {
       this.log('');
 
       // Call daemon API to clone repo
-      const client = createClient(daemonUrl);
-
       const repo = await client.service('repos').clone({
         url: args.url,
         name: slug,
@@ -89,14 +79,10 @@ export default class RepoAdd extends Command {
       this.log(`  ${chalk.cyan('Default Branch')}: ${repo.default_branch}`);
       this.log('');
 
-      // Close socket and wait for it to close
-      await new Promise<void>((resolve) => {
-        client.io.once('disconnect', () => resolve());
-        client.io.close();
-        setTimeout(() => resolve(), 1000); // Fallback timeout
-      });
-      process.exit(0);
+      await this.cleanupClient(client);
     } catch (error) {
+      await this.cleanupClient(client);
+
       const message = error instanceof Error ? error.message : String(error);
 
       this.log('');
@@ -107,19 +93,23 @@ export default class RepoAdd extends Command {
         this.log('');
         this.log(`Use ${chalk.cyan('agor repo list')} to see registered repos.`);
         this.log('');
-        process.exit(1);
-      } else if (message.includes('Permission denied')) {
+        this.exit(1);
+      }
+
+      if (message.includes('Permission denied')) {
         this.log(chalk.red('✗ Permission denied'));
         this.log('');
         this.log('Make sure you have SSH keys configured or use HTTPS URL.');
         this.log('');
-        process.exit(1);
-      } else if (message.includes('Could not resolve host')) {
+        this.exit(1);
+      }
+
+      if (message.includes('Could not resolve host')) {
         this.log(chalk.red('✗ Network error'));
         this.log('');
         this.log('Check your internet connection and try again.');
         this.log('');
-        process.exit(1);
+        this.exit(1);
       }
 
       // Generic error
@@ -127,7 +117,7 @@ export default class RepoAdd extends Command {
       this.log('');
       this.log(chalk.dim(message));
       this.log('');
-      process.exit(1);
+      this.exit(1);
     }
   }
 }
