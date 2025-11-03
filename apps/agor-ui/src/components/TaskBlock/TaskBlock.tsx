@@ -25,8 +25,8 @@ import {
   DownOutlined,
   FileTextOutlined,
   GithubOutlined,
-  RightOutlined,
   RobotOutlined,
+  UpOutlined,
 } from '@ant-design/icons';
 import { Bubble } from '@ant-design/x';
 import { Avatar, Collapse, Flex, Space, Spin, Tag, Typography, theme } from 'antd';
@@ -326,83 +326,83 @@ export const TaskBlock = React.memo<TaskBlockProps>(
 
     // Task header shows when collapsed
     const taskHeader = (
-      <div style={{ width: '100%' }}>
-        <Space size={token.sizeUnit} align="start" style={{ width: '100%' }}>
-          <div style={{ fontSize: 16, marginTop: token.sizeUnit / 4 }}>
-            <TaskStatusIcon status={task.status} size={18} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: token.sizeUnit / 2,
-              }}
-            >
-              <Typography.Text strong>
-                {typeof task.description === 'string'
-                  ? task.description || 'User Prompt'
-                  : 'User Prompt'}
-              </Typography.Text>
-            </div>
+      <Flex gap={token.sizeUnit * 2} style={{ width: '100%' }}>
+        {/* Left column: Icons stacked vertically */}
+        <Flex
+          vertical
+          align="center"
+          gap={token.sizeUnit / 2}
+          style={{ width: 'auto', paddingTop: token.sizeUnit }}
+        >
+          {isExpanded ? <UpOutlined /> : <DownOutlined />}
+          <TaskStatusIcon status={task.status} size={16} />
+        </Flex>
 
-            {/* Task metadata */}
-            <Flex wrap gap={token.sizeUnit * 1.5} style={{ marginTop: token.sizeUnit / 2 }}>
-              <TimerPill
-                status={task.status}
-                startedAt={task.message_range?.start_timestamp || task.created_at}
-                endedAt={task.message_range?.end_timestamp || task.completed_at}
-                durationMs={task.duration_ms}
-                tooltip="Task runtime"
+        {/* Right column: Content */}
+        <Flex vertical flex={1} style={{ minWidth: 0 }}>
+          <Flex align="center" wrap gap={token.sizeUnit / 2}>
+            <Typography.Text strong>
+              {typeof task.description === 'string'
+                ? task.description || 'User Prompt'
+                : 'User Prompt'}
+            </Typography.Text>
+          </Flex>
+
+          {/* Task metadata */}
+          <Flex wrap gap={token.sizeUnit * 1.5} style={{ marginTop: token.sizeUnit / 2 }}>
+            <TimerPill
+              status={task.status}
+              startedAt={task.message_range?.start_timestamp || task.created_at}
+              endedAt={task.message_range?.end_timestamp || task.completed_at}
+              durationMs={task.duration_ms}
+              tooltip="Task runtime"
+            />
+            {task.created_by && (
+              <CreatedByTag
+                createdBy={task.created_by}
+                currentUserId={currentUserId}
+                users={users}
+                prefix="By"
               />
-              {task.created_by && (
-                <CreatedByTag
-                  createdBy={task.created_by}
-                  currentUserId={currentUserId}
-                  users={users}
-                  prefix="By"
-                />
-              )}
-              <MessageCountPill count={messageCount} />
-              <ToolCountPill count={toolCount} />
-              {task.usage?.total_tokens && (
-                <TokenCountPill
-                  count={task.usage.total_tokens}
-                  estimatedCost={task.usage.estimated_cost_usd}
-                  inputTokens={task.usage.input_tokens}
-                  outputTokens={task.usage.output_tokens}
-                  cacheReadTokens={task.usage.cache_read_tokens}
-                  cacheCreationTokens={task.usage.cache_creation_tokens}
-                />
-              )}
-              {task.context_window && task.context_window_limit && (
-                <ContextWindowPill used={task.context_window} limit={task.context_window_limit} />
-              )}
-              {task.model && task.model !== sessionModel && <ModelPill model={task.model} />}
-              {task.git_state.sha_at_start && task.git_state.sha_at_start !== 'unknown' && (
-                <GitStatePill
-                  branch={task.git_state.ref_at_start}
-                  sha={task.git_state.sha_at_start}
-                  style={{ fontSize: 11 }}
-                />
-              )}
-              {task.report && (
-                <Tag icon={<FileTextOutlined />} color="green" style={{ fontSize: 11 }}>
-                  Report
-                </Tag>
-              )}
-            </Flex>
-          </div>
-        </Space>
-      </div>
+            )}
+            <MessageCountPill count={messageCount} />
+            <ToolCountPill count={toolCount} />
+            {task.usage?.total_tokens && (
+              <TokenCountPill
+                count={task.usage.total_tokens}
+                estimatedCost={task.usage.estimated_cost_usd}
+                inputTokens={task.usage.input_tokens}
+                outputTokens={task.usage.output_tokens}
+                cacheReadTokens={task.usage.cache_read_tokens}
+                cacheCreationTokens={task.usage.cache_creation_tokens}
+              />
+            )}
+            {task.context_window && task.context_window_limit && (
+              <ContextWindowPill used={task.context_window} limit={task.context_window_limit} />
+            )}
+            {task.model && task.model !== sessionModel && <ModelPill model={task.model} />}
+            {task.git_state.sha_at_start && task.git_state.sha_at_start !== 'unknown' && (
+              <GitStatePill
+                branch={task.git_state.ref_at_start}
+                sha={task.git_state.sha_at_start}
+                style={{ fontSize: 11 }}
+              />
+            )}
+            {task.report && (
+              <Tag icon={<FileTextOutlined />} color="green" style={{ fontSize: 11 }}>
+                Report
+              </Tag>
+            )}
+          </Flex>
+        </Flex>
+      </Flex>
     );
 
     return (
       <Collapse
         activeKey={isExpanded ? ['task-content'] : []}
         onChange={keys => onExpandChange(keys.length > 0)}
-        expandIcon={({ isActive }) => (isActive ? <DownOutlined /> : <RightOutlined />)}
+        expandIcon={() => null}
         style={{ background: 'transparent', border: 'none', margin: `${token.sizeUnit}px 0` }}
         items={[
           {
@@ -411,7 +411,7 @@ export const TaskBlock = React.memo<TaskBlockProps>(
             style: { border: 'none' },
             styles: {
               header: {
-                padding: `${token.sizeUnit}px ${token.sizeUnit * 1.5}px`,
+                padding: token.sizeUnit * 2,
                 background: token.colorBgContainer,
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadius * 1.5,
