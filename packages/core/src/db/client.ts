@@ -100,6 +100,27 @@ function createLibSQLClient(config: DbConfig): Client {
 }
 
 /**
+ * Configure SQLite pragmas for better concurrent access
+ * - WAL mode allows readers and writers to coexist
+ * - Busy timeout retries locked operations instead of failing immediately
+ * - Foreign key constraints required for CASCADE, SET NULL, etc.
+ */
+async function configureSQLitePragmas(client: Client): Promise<void> {
+  try {
+    await client.execute('PRAGMA journal_mode = WAL');
+    console.log('✅ WAL mode enabled for concurrent access');
+
+    await client.execute('PRAGMA busy_timeout = 5000');
+    console.log('✅ Busy timeout set to 5 seconds');
+
+    await client.execute('PRAGMA foreign_keys = ON');
+    console.log('✅ Foreign key constraints enabled');
+  } catch (error) {
+    console.warn('⚠️  Failed to configure SQLite pragmas:', error);
+  }
+}
+
+/**
  * Create Drizzle database instance (synchronous)
  *
  * NOTE: This function enables foreign key constraints asynchronously after returning.
@@ -124,12 +145,9 @@ export function createDatabase(config: DbConfig): LibSQLDatabase<typeof schema> 
   const client = createLibSQLClient(config);
   const db = drizzle(client, { schema });
 
-  // Enable foreign key constraints (required for CASCADE, SET NULL, etc.)
-  // SQLite has foreign keys disabled by default for backwards compatibility
-  // This runs async but doesn't block - foreign keys will be enabled shortly after
-  void client.execute('PRAGMA foreign_keys = ON').catch(error => {
-    console.warn('⚠️  Failed to enable foreign key constraints:', error);
-  });
+  // Configure SQLite pragmas asynchronously (fire-and-forget)
+  // This doesn't block database creation but pragmas will be set shortly after
+  void configureSQLitePragmas(client);
 
   return db;
 }
@@ -148,12 +166,8 @@ export async function createDatabaseAsync(
   const client = createLibSQLClient(config);
   const db = drizzle(client, { schema });
 
-  // Enable foreign key constraints (required for CASCADE, SET NULL, etc.)
-  try {
-    await client.execute('PRAGMA foreign_keys = ON');
-  } catch (error) {
-    console.warn('⚠️  Failed to enable foreign key constraints:', error);
-  }
+  // Configure SQLite pragmas and wait for completion
+  await configureSQLitePragmas(client);
 
   return db;
 }

@@ -213,22 +213,8 @@ export async function setupQuery(
   // Add permissionMode if provided
   // For Claude Code sessions, the UI should pass Claude SDK permission modes directly:
   // 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
-  // No mapping needed - UI is responsible for showing correct options per agent type
   if (permissionMode) {
-    // SECURITY: bypassPermissions cannot be used with root/sudo
-    // Claude Code blocks this for security reasons
-    const isRoot = process.getuid?.() === 0;
-
-    if (isRoot && permissionMode === 'bypassPermissions') {
-      console.warn(
-        `⚠️  Running as root - bypassPermissions not allowed. Falling back to 'default' mode.`
-      );
-      console.warn(`   This is a security restriction from Claude Code SDK.`);
-      queryOptions.permissionMode = 'default';
-    } else {
-      queryOptions.permissionMode = permissionMode;
-    }
-
+    queryOptions.permissionMode = permissionMode;
     console.log(`🔐 Permission mode: ${queryOptions.permissionMode}`);
   }
 
