@@ -403,10 +403,10 @@ const WorktreeCard = ({
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <Typography.Text strong className="nodrag">
-              {repo.slug}
+              {worktree.name}
             </Typography.Text>
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {worktree.name}
+              {repo.slug}
             </Typography.Text>
           </div>
         </Space>
