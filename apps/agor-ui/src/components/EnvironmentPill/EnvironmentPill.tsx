@@ -5,12 +5,11 @@ import {
   EditOutlined,
   FileTextOutlined,
   GlobalOutlined,
-  LoadingOutlined,
   PlayCircleOutlined,
   StopOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { Button, Space, Tag, Tooltip, theme } from 'antd';
+import { Button, Space, Spin, Tag, Tooltip, theme } from 'antd';
 import { getEnvironmentState } from '../../utils/environmentState';
 
 interface EnvironmentPillProps {
@@ -34,9 +33,8 @@ export function EnvironmentPill({
   const hasConfig = !!repo.environment_config;
   const env = worktree.environment_instance;
 
-  // Get URL from backend-computed access_urls
-  const environmentUrl =
-    env?.access_urls && env.access_urls.length > 0 ? env.access_urls[0].url : undefined;
+  // Get static app_url (user-editable, initialized from template)
+  const environmentUrl = worktree.app_url;
 
   // Case 1: No config at all - show grayed discovery pill
   if (!hasConfig) {
@@ -70,7 +68,7 @@ export function EnvironmentPill({
         return <StopOutlined style={{ color: token.colorTextDisabled, fontSize: 12 }} />;
       case 'starting':
       case 'stopping':
-        return <LoadingOutlined style={{ fontSize: 12 }} />;
+        return <Spin size="small" />;
       case 'healthy':
         return <CheckCircleOutlined style={{ color: token.colorSuccess, fontSize: 12 }} />;
       case 'unhealthy':

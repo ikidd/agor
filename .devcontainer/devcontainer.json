@@ -1,6 +1,6 @@
 {
   "name": "Agor Playground (Recommended - Fast npm install)",
-  // Cache bust: 2025-11-04-v7 - Version 0.6.10 - Fix double session save and clean console logs
+  // Cache bust: 2025-11-07-v11 - Bump to agor-live v0.7.3 (fix Codespaces daemon URL)
   "build": {
     "dockerfile": "playground/Dockerfile",
     "context": ".."
@@ -8,7 +8,7 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
-      "moby": true,
+      "moby": false,
       "dockerDashComposeVersion": "v2"
     }
   },

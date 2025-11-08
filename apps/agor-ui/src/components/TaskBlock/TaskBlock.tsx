@@ -34,6 +34,7 @@ import React, { useMemo } from 'react';
 import { useStreamingMessages } from '../../hooks/useStreamingMessages';
 import { useTaskEvents } from '../../hooks/useTaskEvents';
 import { useTaskMessages } from '../../hooks/useTaskMessages';
+import { getContextWindowGradient } from '../../utils/contextWindow';
 import { AgentChain } from '../AgentChain';
 import { AgorAvatar } from '../AgorAvatar';
 import { MessageBlock } from '../MessageBlock';
@@ -313,22 +314,11 @@ export const TaskBlock = React.memo<TaskBlockProps>(
         ? task.tool_use_count
         : messages.reduce((sum, msg) => sum + (msg.tool_uses?.length || 0), 0);
 
-    // Calculate context window usage percentage for visual progress bar
-    const contextWindowPercentage =
-      task.context_window && task.context_window_limit
-        ? (task.context_window / task.context_window_limit) * 100
-        : 0;
-
-    // Color-code based on usage: green (<50%), yellow (50-80%), red (>80%)
-    const _getContextWindowColor = () => {
-      if (contextWindowPercentage < 50) {
-        return token.colorSuccessBg; // Light green
-      }
-      if (contextWindowPercentage < 80) {
-        return token.colorWarningBg; // Light yellow/orange
-      }
-      return token.colorErrorBg; // Light red
-    };
+    // Calculate gradient for task header background
+    const taskHeaderGradient = getContextWindowGradient(
+      task.context_window,
+      task.context_window_limit
+    );
 
     // Task header shows when collapsed
     const taskHeader = (
@@ -396,7 +386,16 @@ export const TaskBlock = React.memo<TaskBlockProps>(
               />
             )}
             {task.context_window && task.context_window_limit && (
-              <ContextWindowPill used={task.context_window} limit={task.context_window_limit} />
+              <ContextWindowPill
+                used={task.context_window}
+                limit={task.context_window_limit}
+                taskMetadata={{
+                  usage: task.usage,
+                  model: task.model,
+                  model_usage: task.model_usage,
+                  duration_ms: task.duration_ms,
+                }}
+              />
             )}
             {task.model && task.model !== sessionModel && <ModelPill model={task.model} />}
             {task.git_state.sha_at_start && task.git_state.sha_at_start !== 'unknown' && (
@@ -430,7 +429,7 @@ export const TaskBlock = React.memo<TaskBlockProps>(
             styles: {
               header: {
                 padding: token.sizeUnit * 2,
-                background: token.colorBgContainer,
+                background: taskHeaderGradient || token.colorBgContainer,
                 border: `1px solid ${token.colorBorder}`,
                 borderRadius: token.borderRadius * 1.5,
                 alignItems: 'flex-start',
@@ -478,6 +477,10 @@ export const TaskBlock = React.memo<TaskBlockProps>(
                         }
                       }
 
+                      // Check if this is the latest agent message (last message block)
+                      const isLatestMessage =
+                        block.message.role === MessageRole.ASSISTANT && blockIndex === blocks.length - 1;
+
                       return (
                         <MessageBlock
                           key={block.message.message_id}
@@ -489,6 +492,7 @@ export const TaskBlock = React.memo<TaskBlockProps>(
                           sessionId={sessionId}
                           onPermissionDecision={onPermissionDecision}
                           isFirstPendingPermission={isFirstPending}
+                          isLatestMessage={isLatestMessage}
                           taskId={task.task_id}
                         />
                       );

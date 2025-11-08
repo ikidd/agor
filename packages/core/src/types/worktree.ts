@@ -36,6 +36,21 @@ export interface Worktree {
    */
   worktree_unique_id: number;
 
+  /** Start command - initialized from repo template, then user-editable (e.g., "pnpm dev") */
+  start_command?: string;
+
+  /** Stop command - initialized from repo template, then user-editable (e.g., "pkill -f 'pnpm dev'") */
+  stop_command?: string;
+
+  /** Health check URL - initialized from repo template, then user-editable (e.g., "http://localhost:5173/health") */
+  health_check_url?: string;
+
+  /** App URL - initialized from repo template, then user-editable (e.g., "http://localhost:5173") */
+  app_url?: string;
+
+  /** Logs command - initialized from repo template, then user-editable (e.g., "docker logs agor-daemon") */
+  logs_command?: string;
+
   /** Timestamps */
   created_at: string;
   updated_at: string;

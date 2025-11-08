@@ -9,6 +9,7 @@ import { type Database, RepoRepository } from '@agor/core/db';
 import { autoAssignWorktreeUniqueId } from '@agor/core/environment/variable-resolver';
 import type { Application } from '@agor/core/feathers';
 import { cloneRepo, getWorktreePath, createWorktree as gitCreateWorktree } from '@agor/core/git';
+import { renderTemplate } from '@agor/core/templates/handlebars-helpers';
 import type { AuthenticatedParams, QueryParams, Repo, Worktree } from '@agor/core/types';
 import { DrizzleService } from '../adapters/drizzle';
 
@@ -31,6 +32,7 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
     const repoRepo = new RepoRepository(db);
     super(repoRepo, {
       id: 'repo_id',
+      resourceType: 'Repo',
       paginate: {
         default: 50,
         max: 100,
@@ -39,51 +41,6 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
 
     this.repoRepo = repoRepo;
     this.app = app;
-  }
-
-  /**
-   * Override patch to recompute access URLs when environment_config changes
-   */
-  async patch(id: string, data: Partial<Repo>, params?: RepoParams): Promise<Repo> {
-    // Check if environment_config is being updated
-    const isUpdatingEnvConfig = !!data.environment_config;
-
-    // Perform the patch - cast since we're patching a single item by ID
-    const updatedRepo = (await super.patch(id, data, params)) as Repo;
-
-    // If environment config was updated, recompute URLs for all active worktrees
-    if (isUpdatingEnvConfig) {
-      console.log(
-        `🔄 Environment config updated for repo ${updatedRepo.slug} - recomputing access URLs...`
-      );
-
-      const worktreesService = this.app.service('worktrees');
-      const worktreesResult = await worktreesService.find({
-        query: { repo_id: id, $limit: 1000 },
-        paginate: false,
-      });
-
-      const worktrees = (
-        Array.isArray(worktreesResult) ? worktreesResult : worktreesResult.data
-      ) as Worktree[];
-
-      // Recompute URLs for each active worktree
-      for (const worktree of worktrees) {
-        const status = worktree.environment_instance?.status;
-        if (status === 'running' || status === 'starting') {
-          // Call recomputeAccessUrls method (exists on WorktreesService but not typed on base service)
-          await (
-            worktreesService as unknown as {
-              recomputeAccessUrls: (id: string) => Promise<Worktree>;
-            }
-          ).recomputeAccessUrls(worktree.worktree_id);
-        }
-      }
-
-      console.log(`✅ Recomputed access URLs for ${worktrees.length} worktree(s)`);
-    }
-
-    return updatedRepo;
   }
 
   /**
@@ -165,6 +122,58 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
 
     const worktreeUniqueId = autoAssignWorktreeUniqueId(existingWorktrees);
 
+    // Initialize static environment fields from templates (if repo has environment config)
+    let start_command: string | undefined;
+    let stop_command: string | undefined;
+    let health_check_url: string | undefined;
+    let app_url: string | undefined;
+    let logs_command: string | undefined;
+
+    if (repo.environment_config) {
+      const templateContext = {
+        worktree: {
+          unique_id: worktreeUniqueId,
+          name: data.name,
+          path: worktreePath,
+        },
+        repo: {
+          slug: repo.slug,
+        },
+        custom: {}, // No custom context at creation time
+      };
+
+      // Helper to render a template with error handling
+      const safeRenderTemplate = (template: string, fieldName: string): string | undefined => {
+        try {
+          return renderTemplate(template, templateContext);
+        } catch (err) {
+          console.warn(`Failed to render ${fieldName} for ${data.name}:`, err);
+          return undefined;
+        }
+      };
+
+      // Render all fields from templates
+      start_command = repo.environment_config.up_command
+        ? safeRenderTemplate(repo.environment_config.up_command, 'start_command')
+        : undefined;
+
+      stop_command = repo.environment_config.down_command
+        ? safeRenderTemplate(repo.environment_config.down_command, 'stop_command')
+        : undefined;
+
+      health_check_url = repo.environment_config.health_check?.url_template
+        ? safeRenderTemplate(repo.environment_config.health_check.url_template, 'health_check_url')
+        : undefined;
+
+      app_url = repo.environment_config.app_url_template
+        ? safeRenderTemplate(repo.environment_config.app_url_template, 'app_url')
+        : undefined;
+
+      logs_command = repo.environment_config.logs_command
+        ? safeRenderTemplate(repo.environment_config.logs_command, 'logs_command')
+        : undefined;
+    }
+
     // Create worktree record in database using the service (broadcasts WebSocket event)
     const worktree = (await worktreesService.create(
       {
@@ -175,6 +184,11 @@ export class ReposService extends DrizzleService<Repo, Partial<Repo>, RepoParams
         base_ref: data.sourceBranch,
         new_branch: data.createBranch ?? false,
         worktree_unique_id: worktreeUniqueId,
+        start_command, // Static environment fields initialized from templates
+        stop_command,
+        health_check_url,
+        app_url,
+        logs_command,
         sessions: [],
         last_used: new Date().toISOString(),
         issue_url: data.issue_url,

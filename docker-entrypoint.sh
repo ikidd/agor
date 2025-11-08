@@ -21,8 +21,8 @@ echo "📦 Initializing Agor environment..."
 pnpm agor init --skip-if-exists
 
 # Always ensure auth is enabled in docker (create/overwrite config for multiplayer mode)
-mkdir -p /root/.agor
-cat > /root/.agor/config.yaml <<EOF
+mkdir -p /home/agor/.agor
+cat > /home/agor/.agor/config.yaml <<EOF
 daemon:
   port: ${DAEMON_PORT:-3030}
   host: localhost
@@ -35,7 +35,7 @@ echo "👤 Ensuring default admin user exists..."
 pnpm --filter @agor/cli exec tsx bin/dev.ts user create-admin --force
 
 # Start daemon in background (use DAEMON_PORT env var or default to 3030)
-echo "📡 Starting daemon on port ${DAEMON_PORT:-3030}..."
+echo "🚀 Starting daemon on port ${DAEMON_PORT:-3030}..."
 PORT="${DAEMON_PORT:-3030}" pnpm --filter @agor/daemon dev &
 DAEMON_PID=$!
 

@@ -38,7 +38,9 @@ import {
 import React from 'react';
 import { useTasks } from '../../hooks/useTasks';
 import spawnSubsessionTemplate from '../../templates/spawn_subsession.hbs?raw';
+import { getContextWindowGradient } from '../../utils/contextWindow';
 import { compileTemplate } from '../../utils/templates';
+import { AutocompleteTextarea } from '../AutocompleteTextarea';
 import { ConversationView } from '../ConversationView';
 import { EnvironmentPill } from '../EnvironmentPill';
 import { CreatedByTag } from '../metadata';
@@ -46,7 +48,9 @@ import { PermissionModeSelector } from '../PermissionModeSelector';
 import {
   ContextWindowPill,
   ForkPill,
+  IssuePill,
   MessageCountPill,
+  PullRequestPill,
   RepoPill,
   SessionIdPill,
   SpawnPill,
@@ -55,8 +59,6 @@ import {
 } from '../Pill';
 import { ThinkingModeSelector } from '../ThinkingModeSelector';
 import { ToolIcon } from '../ToolIcon';
-
-const { TextArea } = Input;
 
 // Re-export PermissionMode from SDK for convenience
 export type { PermissionMode };
@@ -174,7 +176,7 @@ const SessionDrawer = ({
     session?.permission_config?.codex?.approvalPolicy || 'on-request'
   );
   const [thinkingMode, setThinkingMode] = React.useState<'auto' | 'manual' | 'off'>(
-    session?.model_config?.thinkingMode || 'off'
+    session?.model_config?.thinkingMode || 'auto'
   );
   const [scrollToBottom, setScrollToBottom] = React.useState<(() => void) | null>(null);
   const [isStopping, setIsStopping] = React.useState(false);
@@ -205,13 +207,26 @@ const SessionDrawer = ({
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     if (tasksWithContext.length > 0) {
+      const task = tasksWithContext[0];
       return {
-        used: tasksWithContext[0].context_window!,
-        limit: tasksWithContext[0].context_window_limit!,
+        used: task.context_window!,
+        limit: task.context_window_limit!,
+        taskMetadata: {
+          usage: task.usage,
+          model: task.model,
+          model_usage: task.model_usage,
+          duration_ms: task.duration_ms,
+        },
       };
     }
     return null;
   }, [tasks]);
+
+  // Calculate gradient for footer background
+  const footerGradient = React.useMemo(() => {
+    if (!latestContextWindow) return undefined;
+    return getContextWindowGradient(latestContextWindow.used, latestContextWindow.limit);
+  }, [latestContextWindow]);
 
   const footerTimerTask = React.useMemo(() => {
     if (tasks.length === 0) {
@@ -260,15 +275,16 @@ const SessionDrawer = ({
     }
   }, [session?.model_config?.thinkingMode]);
 
-  // Scroll to bottom when drawer opens
+  // Scroll to bottom when drawer opens or session changes
   React.useEffect(() => {
-    if (open && scrollToBottom) {
-      // Small delay to ensure content is rendered
-      setTimeout(() => {
+    if (open && scrollToBottom && session) {
+      // Longer delay to ensure tasks are loaded and content is rendered
+      const timeoutId = setTimeout(() => {
         scrollToBottom();
-      }, 100);
+      }, 300);
+      return () => clearTimeout(timeoutId);
     }
-  }, [open, scrollToBottom]);
+  }, [open, scrollToBottom, session?.session_id]);
 
   // Early return if no session (drawer should not be open without a session)
   // IMPORTANT: Must be after all hooks to satisfy Rules of Hooks
@@ -553,6 +569,11 @@ const SessionDrawer = ({
                 onViewLogs={onViewLogs}
               />
             )}
+            {/* Issue and PR Pills */}
+            {worktree?.issue_url && <IssuePill issueUrl={worktree.issue_url} />}
+            {worktree?.pull_request_url && (
+              <PullRequestPill prUrl={worktree.pull_request_url} />
+            )}
             {/* MCP Servers */}
             {sessionMcpServerIds
               .map(serverId => mcpServers.find(s => s.mcp_server_id === serverId))
@@ -609,7 +630,7 @@ const SessionDrawer = ({
         style={{
           position: 'sticky',
           bottom: 0,
-          background: token.colorBgContainer,
+          background: footerGradient || token.colorBgContainer,
           borderTop: `1px solid ${token.colorBorder}`,
           padding: `${token.sizeUnit * 2}px ${token.sizeUnit * 6}px`,
           marginLeft: -token.sizeUnit * 6,
@@ -618,21 +639,23 @@ const SessionDrawer = ({
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size={8}>
-          <TextArea
+          <AutocompleteTextarea
             value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            placeholder="Send a prompt, fork, or create a subsession..."
+            onChange={setInputValue}
+            placeholder="Send a prompt, fork, or create a subsession... (type @ for autocomplete)"
             autoSize={{ minRows: 1, maxRows: 10 }}
-            onPressEnter={e => {
-              if (e.shiftKey) {
-                return;
-              }
-              e.preventDefault();
-              // Respect same disabled conditions as Send button (isRunning || !inputValue.trim())
-              if (!isRunning && inputValue.trim()) {
-                handleSendPrompt();
+            onKeyPress={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // Respect same disabled conditions as Send button (isRunning || !inputValue.trim())
+                if (!isRunning && inputValue.trim()) {
+                  handleSendPrompt();
+                }
               }
             }}
+            client={client}
+            sessionId={session?.session_id || null}
+            users={users}
           />
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Space size={8}>
@@ -674,10 +697,11 @@ const SessionDrawer = ({
                 <ContextWindowPill
                   used={latestContextWindow.used}
                   limit={latestContextWindow.limit}
+                  taskMetadata={latestContextWindow.taskMetadata}
                 />
               )}
             </Space>
-            <Space size={8}>
+            <Space size={4}>
               {/* Thinking Mode Selector - Claude only */}
               {session.agentic_tool === 'claude-code' && (
                 <ThinkingModeSelector

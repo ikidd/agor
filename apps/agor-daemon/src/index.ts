@@ -81,6 +81,7 @@ import type {
   User,
 } from '@agor/core/types';
 import { SessionStatus, TaskStatus } from '@agor/core/types';
+import { calculateContextWindowUsage } from '@agor/core/utils/context-window';
 import type { TokenUsage } from '@agor/core/utils/pricing';
 // Import Claude SDK's PermissionMode type for ClaudeTool method signatures
 // (Agor's PermissionMode is a superset of all tool permission modes)
@@ -112,6 +113,7 @@ import { createBoardsService } from './services/boards';
 import { createConfigService } from './services/config';
 import { createContextService } from './services/context';
 import { createHealthMonitor } from './services/health-monitor';
+import { createFilesService } from './services/files';
 import { createMCPServersService } from './services/mcp-servers';
 import { createMessagesService } from './services/messages';
 import { createReposService } from './services/repos';
@@ -164,6 +166,7 @@ async function main() {
 
   // Configure Git to fail fast instead of prompting for credentials
   // This prevents git operations from hanging indefinitely in automated environments
+  // while still allowing credential helpers (gh auth, SSH keys, credential stores) to work
   process.env.GIT_TERMINAL_PROMPT = '0'; // Disable terminal credential prompts
   process.env.GIT_ASKPASS = 'echo'; // Return empty for any password prompt
 
@@ -665,6 +668,9 @@ async function main() {
   // Requires worktree_id query parameter
   const worktreeRepository = new WorktreeRepository(db);
   app.use('/context', createContextService(worktreeRepository));
+
+  // Register files service for autocomplete search
+  app.use('/files', createFilesService(db));
 
   // Register terminals service for PTY management
   const terminalsService = new TerminalsService(app, db);
@@ -1802,6 +1808,21 @@ async function main() {
                     },
                     tool_use_count: toolUseCount,
                     usage,
+                    // Save execution metadata from result
+                    duration_ms:
+                      'durationMs' in result ? (result.durationMs as number | undefined) : undefined,
+                    agent_session_id:
+                      'agentSessionId' in result
+                        ? (result.agentSessionId as string | undefined)
+                        : undefined,
+                    context_window: calculateContextWindowUsage(usage),
+                    context_window_limit:
+                      'contextWindowLimit' in result
+                        ? (result.contextWindowLimit as number | undefined)
+                        : undefined,
+                    model: 'model' in result ? (result.model as string | undefined) : undefined,
+                    model_usage:
+                      'modelUsage' in result ? (result.modelUsage as Task['model_usage']) : undefined,
                   },
                   'Task'
                 );

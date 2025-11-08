@@ -29,7 +29,7 @@ export const sessions = sqliteTable(
 
     // Materialized for filtering/joins (cross-DB compatible)
     status: text('status', {
-      enum: ['idle', 'running', 'completed', 'failed'],
+      enum: ['idle', 'running', 'awaiting_permission', 'completed', 'failed'],
     }).notNull(),
     agentic_tool: text('agentic_tool', {
       enum: ['claude-code', 'codex', 'gemini'],
@@ -168,6 +168,7 @@ export const tasks = sqliteTable(
         agent_session_id?: string;
         context_window?: number;
         context_window_limit?: number;
+        model_usage?: Task['model_usage'];
 
         report?: Task['report'];
         permission_request?: Task['permission_request'];
@@ -333,6 +334,13 @@ export const worktrees = sqliteTable(
     ref: text('ref').notNull(), // Current branch/tag/commit
     worktree_unique_id: integer('worktree_unique_id').notNull(), // Auto-assigned sequential ID for templates
 
+    // Environment configuration (static, initialized from templates, then user-editable)
+    start_command: text('start_command'), // Start command (initialized from repo's up_command template)
+    stop_command: text('stop_command'), // Stop command (initialized from repo's down_command template)
+    health_check_url: text('health_check_url'), // Health check URL (initialized from repo's health_check.url_template)
+    app_url: text('app_url'), // Application URL (initialized from repo's app_url_template)
+    logs_command: text('logs_command'), // Logs command (initialized from repo's logs_command template)
+
     // Board relationship (nullable - worktrees can exist without boards)
     board_id: text('board_id', { length: 36 }).references(() => boards.board_id, {
       onDelete: 'set null', // If board is deleted, worktree remains but loses board association
@@ -469,6 +477,42 @@ export const users = sqliteTable(
         };
         // Encrypted environment variables (stored as hex-encoded encrypted strings)
         env_vars?: Record<string, string>; // { "GITHUB_TOKEN": "enc:...", "NPM_TOKEN": "enc:..." }
+        // Default agentic tool configuration (prepopulates session creation forms)
+        default_agentic_config?: {
+          'claude-code'?: {
+            modelConfig?: {
+              mode?: 'alias' | 'exact';
+              model?: string;
+              thinkingMode?: 'auto' | 'manual' | 'off';
+              manualThinkingTokens?: number;
+            };
+            permissionMode?: string;
+            mcpServerIds?: string[];
+          };
+          codex?: {
+            modelConfig?: {
+              mode?: 'alias' | 'exact';
+              model?: string;
+              thinkingMode?: 'auto' | 'manual' | 'off';
+              manualThinkingTokens?: number;
+            };
+            permissionMode?: string;
+            mcpServerIds?: string[];
+            codexSandboxMode?: string;
+            codexApprovalPolicy?: string;
+            codexNetworkAccess?: boolean;
+          };
+          gemini?: {
+            modelConfig?: {
+              mode?: 'alias' | 'exact';
+              model?: string;
+              thinkingMode?: 'auto' | 'manual' | 'off';
+              manualThinkingTokens?: number;
+            };
+            permissionMode?: string;
+            mcpServerIds?: string[];
+          };
+        };
       }>()
       .notNull(),
   },
